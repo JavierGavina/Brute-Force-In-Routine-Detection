@@ -1,16 +1,16 @@
-# This is a sample Python script.
-
-# Press Mayús+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+# Load the data
+def load_data(data_dir: str):
+    data = pd.read_csv(data_dir, sep=",", header=0, index_col=False)
+    return data
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
+print("Loading data...")
+data = load_data("data/activities-simulation.csv")
+print("Data loaded successfully")
+# print(data.head(10))
+print(data["Sequence"].values)

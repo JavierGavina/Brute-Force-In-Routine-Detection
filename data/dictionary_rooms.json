@@ -1,0 +1,10 @@
+{
+  "room": 1,
+  "dining-room": 2,
+  "therapy": 3,
+  "terrace": 4,
+  "gym": 5,
+  "tv-room": 6,
+  "living-room": 7,
+  "garden": 8
+}
