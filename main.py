@@ -5,8 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import argparse
-from itertools import combinations
-from collections import defaultdict
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("--data_dir", type=str, default="data/activities-simulation.csv", help="Path to the data file")
@@ -114,11 +112,11 @@ class DRFL:
         if self.Bm is None:
             print("No routines detected or fit() not called")
             return
-        print("N RUTINAS: ", len(self.Bm))
+        print("Routines detected: ", len(self.Bm))
         for i, b in enumerate(self.Bm):
-            print(f"CENTROIDE {i + 1}: {b['Cent']}")
-            print(f"RUTINA {i + 1}: {b['Inst']}")
-            print(f"FECHAS {i + 1}: {b['Date']}")
+            print(f"Centroid {i + 1}: {b['Cent']}")
+            print(f"Routine {i + 1}: {b['Inst']}")
+            print(f"Date {i + 1}: {b['Date']}")
             print("_" * 50)
 
     @staticmethod
