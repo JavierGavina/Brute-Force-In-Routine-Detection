@@ -27,7 +27,7 @@ Where:
 ```
 
 
-Both types of data can be obtained on this website implemented by us [Synthetic Activity Dataset](https://javiergavina.github.io/Synthetic-Activity-Dataset/index.html)
+The synthetic activity dataset and the JSON with the correspondencies can be obtained on this website implemented by us [Synthetic Activity Dataset](https://javiergavina.github.io/Synthetic-Activity-Dataset/index.html)
 
 
 Run tests
