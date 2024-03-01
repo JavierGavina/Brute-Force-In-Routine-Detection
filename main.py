@@ -140,7 +140,7 @@ class DRFL:
         N = 0
         for i in range(len(Sm)):
             for j in range(len(Sn)):
-                if self.__IsOverlap(Sm[i], Sn[j], i, j):
+                if self.__IsOverlap(Sm[i], Sn[j-1], i, j-1) or self.__IsOverlap(Sm[i], Sn[j], i, j):
                     N += 1
         Km, Kn = self.__decide_Km_Kn(len(Sm), len(Sn), self.__Mag(Sm), self.__Mag(Sn), N, epsilon)
         return Km, Kn

@@ -16,7 +16,7 @@ python -m main --data_dir path-to-activities-simulation.csv
 
 
 Where:
-
+```markdown
 --data_dir: path to the synthetic activity dataset 
 --dictionary_dir: path to the dictionary_rooms.json with the correspondencies
 --param_m: length of each subsequence
@@ -24,7 +24,7 @@ Where:
 --param_C: minimum number of matches required
 --param_G: least magnitude required
 --epsilon: minimum overlap percentage
-
+```
 
 
 Both types of data can be obtained on this website implemented by us [Synthetic Activity Dataset](https://javiergavina.github.io/Synthetic-Activity-Dataset/index.html)
