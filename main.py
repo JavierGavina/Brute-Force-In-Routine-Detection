@@ -91,98 +91,6 @@ def get_time_series(feat_extract: pd.DataFrame, room: str):
             return time_series
 
 
-#
-# def Mag(S):
-#     # Placeholder for the magnitude function
-#     return np.max(S)
-#
-#
-# def Dist(S1, S2):
-#     # Placeholder for the distance function
-#     return np.max(np.abs(S1 - S2))
-#
-#
-# def NTM(Si, Sj, R):
-#     # returns True if the distance between Si and Sj is less than or equal to R
-#     return Dist(Si, Sj) <= R
-#
-#
-# def IsOverlap(Sm_i, Sn_j, i, j):
-#     p = len(Sm_i)
-#     q = len(Sn_j)
-#     return ((i + p) < j) or ((j + q) < i)
-#
-#
-# def OLTest(Sm, Sn, epsilon):
-#     Km = True
-#     Kn = True
-#     N = 0
-#     i = 1
-#     j = 2
-#
-#     while i <= len(Sm) and j <= len(Sn):
-#         while i <= len(Sm) and j <= len(Sn):
-#             if IsOverlap(Sm[i - 1], Sn[j - 2], i - 1, j - 2) or IsOverlap(Sm[i - 1], Sn[j - 1], i - 1, j - 1):
-#                 N += 1
-#             j += 1
-#         i += 1
-#
-#     if N > epsilon * min(len(Sm), len(Sn)):
-#         if len(Sm) > len(Sn):
-#             Km = True
-#             Kn = False
-#         elif len(Sm) < len(Sn):
-#             Km = False
-#             Kn = True
-#         else:
-#             if Mag(Sm) > Mag(Sn):
-#                 Km = True
-#                 Kn = False
-#             else:
-#                 Km = False
-#                 Kn = True
-#
-#     return Km, Kn
-#
-#
-# def SubGroup(S, R, C, G):
-#     B = [{'Cent': S[0], 'Inst': [S[0]]}]
-#     for Si in S:
-#         if Mag(Si) > G:
-#             distances = [Dist(Si, Bj['Cent']) for Bj in B]
-#             j_hat = np.argmin(distances)
-#             if not any(NTM(Si, Bj['Inst'], R) for Bj in B):
-#                 B[j_hat]['Inst'].append(Si)
-#                 # Update the center here
-#             else:
-#                 B.append({'Cent': Si, 'Inst': [Si]})
-#         else:
-#             B.append({'Cent': Si, 'Inst': [Si]})
-#     B = [Bj for Bj in B if len(Bj['Inst']) >= C]
-#     return B
-#
-#
-# def extract_subsequences(time_series, m):
-#     subsequences = []
-#     for i in range(len(time_series) - m + 1):
-#         subsequences.append(np.array(time_series[i:i + m]))
-#     return subsequences
-#
-# def DRFL(time_series, m, R, C, G, epsilon):
-#     Sm = extract_subsequences(time_series, m)
-#     Bm = SubGroup(Sm, R, C, G)
-#     for i in range(len(Bm) - 1):
-#         for j in range(i, len(Bm)):
-#             try:
-#                 Ki, Kj = OLTest(Bm[i]['Inst'], Bm[j]['Inst'], epsilon)
-#             except:
-#                 print("ERROR", i, j, Bm, len(Bm))
-#             if not Ki:
-#                 Bm[i] = None
-#     Bm = [b for b in Bm if b is not None]
-#     return Bm
-
-
 class DRFL:
     def __init__(self, m, R, C, G, epsilon):
         self.m = m
@@ -273,19 +181,9 @@ class DRFL:
 
 if __name__ == "__main__":
     df = load_data(argparser.parse_args().data_dir)
-    df = load_data("data/activities-simulation-medium.csv")
     correspondencies = obtain_correspondencies(argparser.parse_args().dictionary_dir)
     feat_extraction = feature_extraction(df, correspondencies)
-    # plot_gym_hours(feat_extraction)
     time_series = get_time_series(feat_extraction, "gym")
     routine_detector = DRFL(4, 10, 4, 60, 0.8)
     routine_detector.fit(time_series)
     routine_detector.show_results()
-    # # Example time series data and parameters (placeholders, adjust according to actual data and requirements)
-    # Bm = DRFL(time_series, 5, 2, 5, 80, 0.5)
-    # print("N RUTINAS: ", len(Bm))
-    # print("RUTINAS: ")
-    # for i in range(len(Bm)):
-    #     print("CENTROIDE ", i + 1, ":", Bm[i]['Cent'])
-    #     print("RUTINA ", i + 1, ":", Bm[i]['Inst'])
-    #     print("_" * 50)
