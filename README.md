@@ -4,15 +4,28 @@ This project is an implementation of the brute force algorithm in routine detect
 
 ## Run main code
 
-
 ```bash
-python -m main --data_dir path-to-activities-simulation.csv --dictionary_dir path-to-dictionary_rooms.json
+python -m main --data_dir path-to-activities-simulation.csv 
+               --dictionary_dir path-to-dictionary_rooms.json
+               --param_m int
+               --param_R int 
+               --param_C int
+               --param_G int
+               --epsilon float
 ```
+
 
 Where:
 
 --data_dir: path to the synthetic activity dataset 
 --dictionary_dir: path to the dictionary_rooms.json with the correspondencies
+--param_m: length of each subsequence
+--param_R: least maximum distance 
+--param_C: minimum number of matches required
+--param_G: least magnitude required
+--epsilon: minimum overlap percentage
+
+
 
 Both types of data can be obtained on this website implemented by us [Synthetic Activity Dataset](https://javiergavina.github.io/Synthetic-Activity-Dataset/index.html)
 

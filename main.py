@@ -12,6 +12,11 @@ argparser = argparse.ArgumentParser()
 argparser.add_argument("--data_dir", type=str, default="data/activities-simulation.csv", help="Path to the data file")
 argparser.add_argument("--dictionary_dir", type=str, default="data/dictionary_rooms.json",
                        help="Path to the dictionary file")
+argparser.add_argument("--param_m", type=int, default=4, help="length of the subsequences")
+argparser.add_argument("--param_R", type=int, default=10, help="least maximum distance between subsequences")
+argparser.add_argument("--param_C", type=int, default=4, help="minimum number of matches of a routine")
+argparser.add_argument("--param_G", type=int, default=60, help="minimum magnitude of a subsequence")
+argparser.add_argument("--epsilon", type=float, default=0.5,  help="minimum overlap percentage")
 
 
 def process_sequence(sequence: list):
@@ -180,10 +185,11 @@ class DRFL:
 
 
 if __name__ == "__main__":
-    df = load_data(argparser.parse_args().data_dir)
-    correspondencies = obtain_correspondencies(argparser.parse_args().dictionary_dir)
+    args = argparser.parse_args()
+    df = load_data(args.data_dir)
+    correspondencies = obtain_correspondencies(args.dictionary_dir)
     feat_extraction = feature_extraction(df, correspondencies)
     time_series = get_time_series(feat_extraction, "gym")
-    routine_detector = DRFL(4, 10, 4, 60, 0.8)
+    routine_detector = DRFL(args.param_m, args.param_R, args.param_C, args.param_G, args.epsilon)
     routine_detector.fit(time_series)
     routine_detector.show_results()
