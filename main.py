@@ -14,7 +14,7 @@ argparser.add_argument("--param_m", type=int, default=4, help="length of the sub
 argparser.add_argument("--param_R", type=int, default=10, help="least maximum distance between subsequences")
 argparser.add_argument("--param_C", type=int, default=4, help="minimum number of matches of a routine")
 argparser.add_argument("--param_G", type=int, default=60, help="minimum magnitude of a subsequence")
-argparser.add_argument("--epsilon", type=float, default=0.5,  help="minimum overlap percentage")
+argparser.add_argument("--epsilon", type=float, default=0.5, help="minimum overlap percentage")
 
 
 def process_sequence(sequence: list):
@@ -95,99 +95,125 @@ def get_time_series(feat_extract: pd.DataFrame, room: str):
 
 
 class DRFL:
-    def __init__(self, m, R, C, G, epsilon):
+    def __init__(self, m: int, R: float | int, C: int, G: float | int, epsilon: float):
+        """
+        :param m: Length of each secuence
+        :param R: Distance threshold
+        :param C: Frequency threshold
+        :param G: Magnitude threshold
+        :param epsilon: Overlap Parameter
+        """
         self.m = m
         self.R = R
         self.C = C
         self.G = G
         self.epsilon = epsilon
         self.Bm = None
+        self.Sm = []
+
+    @staticmethod
+    def __Magnitude(sequence: np.array):
+
+        return np.max(sequence)
+
+    @staticmethod
+    def __Distance(S1: np.ndarray, S2: np.ndarray) -> int | float:
+        """
+        
+        :param S1: Left sequence to obtain distance
+        :param S2: Right sequence to obtain distance
+        :return: distance
+        """
+        return np.max(np.abs(S1 - S2))
+
+    @staticmethod
+    def __get_j_hat(distances: np.ndarray):
+        return np.argmin(distances)
+
+    @staticmethod
+    def __GetUpdatedCentre(Bmj) -> np.ndarray:
+        return np.mean(Bmj, axis=0)
+
+    def __extract_subsequence(self, time_series: pd.Series, t: int):
+        """
+        :param time_series: Temporal data
+        :param t: Temporary Instance
+        """
+        sequence = time_series[t:t + self.m]
+        new_params = {"Sequence": time_series[t:t + self.m].values, "Date": time_series.index[t], "auxIndex": t}
+        self.Sm.append(new_params)
+
+    def __getSequenceFromAuxIndex(self, auxIndex: int):
+        for seq in self.Sm:
+            if seq["auxIndex"] == auxIndex:
+                return seq["Sequence"]
+
+    def __IsMatch(self, S1, S2, R):
+        return self.__Distance(S1, S2) <= R
+
+    def __NotTrivialMatch(self, sequence, cluster, start, R):
+        if not self.__IsMatch(sequence, cluster["Cent"], R):
+            return False
+
+        for end in cluster["auxIndex"]:
+
+            for t in reversed(range(start + 1, end)):
+                if self.__IsMatch(sequence, self.__getSequenceFromAuxIndex(t), R):
+                    return False
+
+        return True
+
+    def __SubGroup(self, R, C, G):
+        routines = [{"Cent": self.Sm[0]["Sequence"], "Inst": [self.Sm[0]["Sequence"]],
+                     "Date": [self.Sm[0]["Date"]], "auxIndex": [self.Sm[0]["auxIndex"]]}]
+        for i in range(1, len(self.Sm)):
+            if self.__Magnitude(self.Sm[i]["Sequence"]) > G:
+                distances = [self.__Distance(self.Sm[i]["Sequence"], routines[j]["Cent"]) for j in range(len(routines))]
+                j_hat = self.__get_j_hat(distances)
+                if self.__NotTrivialMatch(self.Sm[i]["Sequence"], routines[j_hat], i, R):
+                    # Append new Sequence on the instances of Bm_j
+                    routines[j_hat]["Inst"].append(self.Sm[i]["Sequence"])
+                    routines[j_hat]["Date"].append(self.Sm[i]["Date"])
+                    routines[j_hat]["auxIndex"].append(self.Sm[i]["auxIndex"])
+
+                    # Update center of the cluster
+                    routines[j_hat]["Cent"] = self.__GetUpdatedCentre(routines[j_hat]["Inst"])
+
+                else:
+                    # create a new center
+                    routines.append({"Cent": self.Sm[i]["Sequence"], "Inst": [self.Sm[i]["Sequence"]],
+                                     "Date": [self.Sm[i]["Date"]], "auxIndex": [self.Sm[i]["auxIndex"]]})
+
+        # Filter by frequency
+        to_drop = [k for k in range(len(routines)) if len(routines[k]["Inst"]) < C]
+        filtered_routines = [value for idx, value in enumerate(routines) if not (idx in to_drop)]
+
+        return filtered_routines
 
     def fit(self, time_series):
-        Sm, dates = self.__extract_subsequences(time_series, self.m)
-        Bm = self.__SubGroup(Sm, self.R, self.C, self.G, dates)
-        self.Bm = [b for b in Bm if b is not None]
+        for i in range(len(time_series) - self.m):
+            self.__extract_subsequence(time_series, i)
+
+        self.Bm = self.__SubGroup(self.R, self.C, self.G)
 
     def show_results(self):
-        if self.Bm is None:
-            print("No routines detected or fit() not called")
-            return
         print("Routines detected: ", len(self.Bm))
+        print("_" * 50)
         for i, b in enumerate(self.Bm):
             print(f"Centroid {i + 1}: {b['Cent']}")
             print(f"Routine {i + 1}: {b['Inst']}")
             print(f"Date {i + 1}: {b['Date']}")
-            print("_" * 50)
-
-    @staticmethod
-    def __Mag(S):
-        return np.max(S)
-
-    @staticmethod
-    def __Dist(S1, S2):
-        return np.max(np.abs(S1 - S2))
-
-    def __NTM(self, Si, Sj, R):
-        return self.__Dist(Si, Sj) <= R
-
-    @staticmethod
-    def __IsOverlap(Sm_i, Sn_j, i, j):
-        p = len(Sm_i)
-        q = len(Sn_j)
-        return ((i + p) > j) and ((j + q) > i)
-
-    def __OLTest(self, Sm, Sn, epsilon):
-        N = 0
-        for i in range(len(Sm)):
-            for j in range(len(Sn)):
-                if self.__IsOverlap(Sm[i], Sn[j-1], i, j-1) or self.__IsOverlap(Sm[i], Sn[j], i, j):
-                    N += 1
-        Km, Kn = self.__decide_Km_Kn(len(Sm), len(Sn), self.__Mag(Sm), self.__Mag(Sn), N, epsilon)
-        return Km, Kn
-
-    def __SubGroup(self, S, R, C, G, dates):
-        B = [{'Cent': S[0], 'Inst': [S[0]], 'Date': [dates[0]]}]
-        for Si, date in zip(S[1:], dates[1:]):
-            if self.__Mag(Si) > G:
-                distances = [self.__Dist(Si, Bj['Cent']) for Bj in B]
-                j_hat = np.argmin(distances)
-                if not any(self.__NTM(Si, Bj['Inst'], R) for Bj in B):
-                    B.append({'Cent': Si, 'Inst': [Si], 'Date': [date]})
-                else:
-                    B[j_hat]['Inst'].append(Si)
-                    B[j_hat]['Date'].append(date)
-            else:
-                B.append({'Cent': Si, 'Inst': [Si], 'Date': [date]})
-        B = [Bj for Bj in B if len(Bj['Inst']) >= C]
-        return B
-
-    @staticmethod
-    def __extract_subsequences(time_series, m):
-        subsequences = []
-        dates = []
-        for i in range(len(time_series) - m + 1):
-            subsequences.append(np.array(time_series[i:i + m]))
-            dates.append(time_series.index[i])
-        return subsequences, dates
-
-    @staticmethod
-    def __decide_Km_Kn(len_Sm, len_Sn, Mag_Sm, Mag_Sn, N, epsilon):
-        if N > epsilon * min(len_Sm, len_Sn):
-            if len_Sm > len_Sn:
-                return True, False
-            elif len_Sm < len_Sn:
-                return False, True
-            else:
-                return (Mag_Sm > Mag_Sn), (Mag_Sm <= Mag_Sn)
-        return True, True  # Default to True, True if the condition doesn't meet
+            print("\n", "-" * 50, "\n")
 
 
 if __name__ == "__main__":
     args = argparser.parse_args()
     df = load_data(args.data_dir)
+    # df = load_data("data/activities-simulation-easy.csv")
     correspondencies = obtain_correspondencies(args.dictionary_dir)
     feat_extraction = feature_extraction(df, correspondencies)
     time_series = get_time_series(feat_extraction, "gym")
+    # routine_detector = DRFL(5, 15, 5, 60, 0.5)
     routine_detector = DRFL(args.param_m, args.param_R, args.param_C, args.param_G, args.epsilon)
     routine_detector.fit(time_series)
     routine_detector.show_results()
