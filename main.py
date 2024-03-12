@@ -270,6 +270,9 @@ class DRFL:
             print(f"Date {i + 1}: {b['Date']}")
             print("\n", "-" * 50, "\n")
 
+    def get_results(self):
+        return self.Bm
+
 
 if __name__ == "__main__":
     args = argparser.parse_args()
@@ -277,6 +280,6 @@ if __name__ == "__main__":
     correspondencies = obtain_correspondencies(args.dictionary_dir)
     feat_extraction = feature_extraction(df, correspondencies)
     time_series = get_time_series(feat_extraction, "gym")
-    routine_detector = DRFL(7, 20, 5, 60, 1)
+    routine_detector = DRFL(7, 20, 5, 60, 0.5)
     routine_detector.fit(time_series)
     routine_detector.show_results()
