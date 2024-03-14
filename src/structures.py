@@ -7,43 +7,88 @@ The module contains the following public classes
 
 Subsequence: Basic data structure.
     Parameters:
-        * instance: np.ndarray, sequence of numbers from the time series
-        * date: datetime.date, the timestamp where the instance belongs
-        * starting_point: int, the temporary starting point of the subsequence
+        * instance: np.ndarray, the instance of the subsequence
+        * date: datetime.date, the date of the subsequence
+        * starting_point: int, the starting point of the subsequence
 
     Public methods:
-        * get_instance
-        * get_date
-        * get_starting_point
-        * to_collection
-        * Magnitude
-        * Distance
+        * get_instance: returns the instance of the subsequence
+        * get_date: returns the date of the subsequence
+        * get_starting_point: returns the starting point of the subsequence
+        * to_collection: returns the subsequence as a dictionary
+        * Magnitude: returns the magnitude of the subsequence
+        * Distance: returns the distance between the subsequence and another subsequence or array
 
-
-Sequence: Structure based on a list of Subsequences. It doesn't take parameters.
+Sequence: Represents a sequence of subsequences
     Public Methods:
-        * add_sequence
-        * get_by_starting_point
-        * set_by_starting_point
-        * get_starting_points
-        * get_dates
-        * get_instances
-        * to_collection
+        * add_sequence: adds a subsequence to the sequence
+        * get_by_starting_point: returns the subsequence with the specified starting point
+        * set_by_starting_point: sets the subsequence with the specified starting point
+        * get_starting_points: returns the starting points of the subsequences
+        * get_dates: returns the dates of the subsequences
+        * get_subsequences: returns the instances of the subsequences
+        * to_collection: returns the sequence as a list of dictionaries
 
-Cluster: Represents the structure of a cluster from a centroid and a Sequence associated to an instance from the centroid
-    Parameters:
-        * centroid: np.ndarray, the centroid of the cluster
-        * instances: Sequence, instances which belongs to the cluster
+Cluster: Represents a cluster of subsequences
+    Public Methods:
+        * add_instance: adds a subsequence to the cluster
+        * get_sequences: returns the sequences of the cluster
+        * update_centroid: updates the centroid of the cluster
+        * get_starting_points: returns the starting points of the subsequences
+        * get_dates: returns the dates of the subsequences
 
-    Public Methods
+Routines: Represents a collection of clusters
+    Public Methods:
+        * add_routine: adds a cluster to the collection
+        * drop_indexes: drops the clusters with the specified indexes
+        * get_routines: returns the clusters of the collection
+        * to_collection: returns the collection as a list of dictionaries
 """
+
 import numpy as np
 import datetime
 from typing import Union
 
 
 class Subsequence:
+    """
+    Basic data structure.
+
+    Parameters:
+        * instance: np.ndarray, the instance of the subsequence
+        * date: datetime.date, the date of the subsequence
+        * starting_point: int, the starting point of the subsequence
+
+    Public methods:
+        * get_instance: returns the instance of the subsequence
+        * get_date: returns the date of the subsequence
+        * get_starting_point: returns the starting point of the subsequence
+        * to_collection: returns the subsequence as a dictionary
+        * Magnitude: returns the magnitude of the subsequence
+        * Distance: returns the distance between the subsequence and another subsequence or array
+
+    Examples:
+        >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+        >>> subsequence.get_instance()
+        np.array([1, 2, 3, 4])
+        >>> subsequence.get_date()
+        datetime.date(2021, 1, 1)
+        >>> subsequence.get_starting_point()
+        0
+        >>> subsequence.to_collection()
+        {'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0}
+        >>> subsequence.Magnitude()
+        4
+        >>> subsequence.Distance(np.array([1, 2, 3, 4]))
+        0
+    """
+
     def __init__(self, instance: np.ndarray, date: datetime.date, starting_point: int) -> None:
+        """
+        :param instance: np.ndarray, the instance of the subsequence
+        :param date: datetime.date, the date of the subsequence
+        :param starting_point: int, the starting point of the subsequence
+        """
         self.__checkType(instance, date, starting_point)
         self.__instance = instance
         self.__date = date
@@ -51,9 +96,20 @@ class Subsequence:
 
     @staticmethod
     def __checkType(instance: np.ndarray, date: datetime.date, starting_point: int) -> None:
+        """
+        Check the type of the parameters
+
+        :param instance: np.ndarray, the instance of the subsequence
+        :param date: datetime.date, the date of the subsequence
+        :param starting_point: int, the starting point of the subsequence
+
+        :raises TypeError: if the parameters are not of the correct type
+        """
+
         err_inst = "Instances must be an arrays"
         err_date = "Date must be a timestamps"
         err_stpoint = "starting_point must be a integer"
+
         if not isinstance(instance, np.ndarray):
             raise TypeError(err_inst)
 
@@ -84,21 +140,50 @@ class Subsequence:
         return True
 
     def get_instance(self) -> np.ndarray:
+        """
+        Returns the instance of the subsequence
+        :return: np.ndarray. The instance of the subsequence
+        """
         return self.__instance
 
     def get_date(self) -> datetime.date:
+        """
+        Returns the date of the subsequence
+        :return: datetime.date. The date of the subsequence
+        """
         return self.__date
 
     def get_starting_point(self) -> int:
+        """
+        Returns the starting point of the subsequence
+        :return: int. The starting point of the subsequence
+        """
+
         return self.__starting_point
 
     def to_collection(self) -> dict:
+        """
+        Returns the subsequence as a dictionary
+        :return: dict. The subsequence as a dictionary
+        """
+
         return {"instance": self.__instance, "date": self.__date, "starting_point": self.__starting_point}
 
     def Magnitude(self) -> float:
+        """
+        Returns the magnitude of the subsequence
+        :return: np.max. The magnitude of the subsequence
+        """
         return np.max(self.__instance)
 
     def Distance(self, other: Union['Subsequence', np.ndarray]) -> float:
+        """
+        Returns the distance between the subsequence and another subsequence or array
+        :param other: Union['Subsequence', np.ndarray]. The subsequence or array to compare
+
+        :return: np.max. The distance between the subsequence and another subsequence or array
+        :raises TypeError: if the parameter is not of the correct type
+        """
         if isinstance(other, np.ndarray):
             return np.max(np.abs(self.__instance - other))
 
@@ -109,7 +194,43 @@ class Subsequence:
 
 
 class Sequence:
+    """
+    Represents a sequence of subsequences
+
+    Parameters:
+        * subsequence: Union[Subsequence, None], the subsequence to add to the sequence
+
+    Public Methods:
+        * add_sequence: adds a subsequence to the sequence
+        * get_by_starting_point: returns the subsequence with the specified starting point
+        * set_by_starting_point: sets the subsequence with the specified starting point
+        * get_starting_points: returns the starting points of the subsequences
+        * get_dates: returns the dates of the subsequences
+        * get_subsequences: returns the instances of the subsequences
+        * to_collection: returns the sequence as a list of dictionaries
+
+    Examples:
+        >>> sequence = Sequence()
+        >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+        >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+        >>> sequence.get_by_starting_point(0)
+        Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0)
+        >>> sequence.get_starting_points()
+        [0, 4]
+        >>> sequence.get_dates()
+        [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)]
+        >>> sequence.get_subsequences()
+        [np.array([1, 2, 3, 4]), np.array([5, 6, 7, 8])]
+        >>> sequence.to_collection()
+        [{'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0},
+         {'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 4}]
+    """
+
     def __init__(self, subsequence: Union[Subsequence, None] = None):
+        """
+        :param subsequence: Union[Subsequence, None], the subsequence to add to the sequence
+        :raises TypeError: if the parameter is not of the correct type
+        """
         if subsequence is not None:
             if not isinstance(subsequence, Subsequence):
                 raise TypeError("subsequence has to be an instance of Subsequence")
@@ -158,6 +279,11 @@ class Sequence:
         return new_sequence
 
     def _alreadyExists(self, subsequence: 'Subsequence') -> bool:
+        """
+        Check if the subsequence already exists in the sequence
+        :param subsequence: Subsequence. The subsequence to check
+        :return: bool. True if the subsequence already exists, False otherwise
+        """
         self_collection = self.to_collection()
         new_self_collection = []
 
@@ -173,6 +299,12 @@ class Sequence:
         return collection in new_self_collection
 
     def add_sequence(self, new: 'Subsequence') -> None:
+        """
+        Adds a subsequence to the sequence
+        :param new: Subsequence. The subsequence to add
+        :raises TypeError: if the parameter is not of the correct type
+        :raises RuntimeError: if the subsequence already exists
+        """
         if not isinstance(new, Subsequence):
             raise TypeError("new has to be an instance of Subsequence")
 
@@ -182,12 +314,24 @@ class Sequence:
         self.__list_sequences.append(new)
 
     def get_by_starting_point(self, starting_point: int) -> Union['Subsequence', None]:
+        """
+        Returns the subsequence with the specified starting point
+        :param starting_point: int. The starting point of the subsequence
+        :return: Union[Subsequence, None]. The subsequence with the specified starting point if it exists. Otherwise, None
+        """
         for subseq in self.__list_sequences:
             if subseq.get_starting_point() == starting_point:
                 return subseq
         return None
 
     def set_by_starting_point(self, starting_point: int, new_sequence: 'Subsequence') -> None:
+        """
+        Sets the subsequence with the specified starting point
+        :param starting_point: int. The starting point of the subsequence
+        :param new_sequence: Subsequence. The new subsequence
+        :raises TypeError: if the parameter is not of the correct type
+        :raises ValueError: if the starting point does not exist
+        """
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(new_sequence, Subsequence):
             raise TypeError("new_sequence must be an instance of Subsequence")
@@ -202,16 +346,32 @@ class Sequence:
         # If not found, raise an error indicating the starting point does not exist
         raise ValueError("The starting point doesn't exist")
 
-    def get_starting_points(self) -> list:
+    def get_starting_points(self) -> list[int]:
+        """
+        Returns the starting points of the subsequences
+        :return: list[int]. The starting points of the subsequences
+        """
         return [subseq.get_starting_point() for subseq in self.__list_sequences]
 
-    def get_dates(self) -> list:
+    def get_dates(self) -> list[datetime.date]:
+        """
+        Returns the dates of the subsequences
+        :return: list[datetime.date]. The dates of the subsequences
+        """
         return [subseq.get_date() for subseq in self.__list_sequences]
 
     def get_subsequences(self) -> list[np.ndarray]:
+        """
+        Returns the instances of the subsequences
+        :return: list[np.ndarray]. The instances of the subsequences
+        """
         return [subseq.get_instance() for subseq in self.__list_sequences]
 
     def to_collection(self) -> list[dict]:
+        """
+        Returns the sequence as a list of dictionaries
+        :return: list[dict]. The sequence as a list of dictionaries
+        """
         collection = []
         for subseq in self.__list_sequences:
             collection.append({
@@ -223,6 +383,20 @@ class Sequence:
 
 
 class Cluster:
+    """
+    Represents a cluster of subsequences from a sequence and a centroid.
+
+    Parameters:
+        * centroid: np.ndarray, the centroid of the cluster
+        * instances: Sequence, the sequence of subsequences
+
+    Public Methods:
+        * add_instance: adds a subsequence to the cluster
+        * get_sequences: returns the sequences of the cluster
+        * update_centroid: updates the centroid of the cluster
+        * get_starting_points: returns the starting points of the subsequences
+        * get_dates: returns the dates of the subsequences
+    """
     def __init__(self, centroid: np.ndarray, instances: 'Sequence'):
         self.__centroid = centroid
         self.__instances = instances
@@ -269,6 +443,12 @@ class Cluster:
         return Cluster(centroid=new_centroid, instances=new_instances)
 
     def add_instance(self, new_instance: 'Subsequence') -> None:
+        """
+        Adds a subsequence to the instances of the cluster
+        :param new_instance: Subsequence. The subsequence to add
+        :raises TypeError: if the parameter is not of the correct type
+        :raises ValueError: if the subsequence is already an instance of the cluster
+        """
         if not isinstance(new_instance, Subsequence):
             raise TypeError("new sequence must be an instance of Subsequence")
 
@@ -278,30 +458,69 @@ class Cluster:
         self.__instances.add_sequence(new_instance)
 
     def get_sequences(self) -> 'Sequence':
+        """
+        Returns the sequence of the cluster
+        :return: Sequence. The sequence of the cluster
+        """
         return self.__instances
 
     def update_centroid(self) -> None:
+        """
+        Updates the centroid of the cluster with the mean of the instances
+        """
         self.__centroid = np.mean(self.__instances.get_subsequences(), axis=0)
 
     @property
     def centroid(self) -> np.ndarray:
+        """
+        Returns the centroid of the cluster
+        :return: np.ndarray. The centroid of the cluster
+        """
         return self.__centroid
 
     @centroid.setter
-    def centroid(self, subsequence: 'Subsequence') -> None:
-        if not isinstance(subsequence, Subsequence):
-            raise TypeError("Must be passed an instance of Subsequence to set the value of the centroid")
+    def centroid(self, subsequence: Union['Subsequence'|np.ndarray]) -> None:
+        """
+        Sets the value of the centroid of the cluster from a subsequence
+        :param subsequence: Union[Subsequence|np.ndarray]. The subsequence to set as the centroid
+        :raises TypeError: if the parameter is not a Subsequence or a numpy array
+        """
+        if isinstance(subsequence, Subsequence):
+            self.__centroid = subsequence.get_instance()
 
-        self.__centroid = subsequence.get_instance()
+        if isinstance(subsequence, np.ndarray):
+            self.__centroid = subsequence
 
-    def get_starting_points(self) -> list:
+        raise TypeError("subsequence must be an instance of Subsequence or a numpy array")
+
+    def get_starting_points(self) -> list[int]:
+        """
+        Returns the starting points of the subsequences
+        :return: list[int]. The starting points of the subsequences
+        """
         return self.__instances.get_starting_points()
 
-    def get_dates(self) -> list:
+    def get_dates(self) -> list[datetime.date]:
+        """
+        Returns the dates of the subsequences
+        :return: list[datetime.date]. The dates of the subsequences
+        """
         return self.__instances.get_dates()
 
 
 class Routines:
+    """
+    Represents a collection of clusters, each of them representing a routine.
+
+    Parameters:
+        * cluster: Union[Cluster, None], the cluster to add to the collection
+
+    Public Methods:
+        * add_routine: adds a cluster to the collection
+        * drop_indexes: drops the clusters with the specified indexes
+        * get_routines: returns the clusters of the collection
+        * to_collection: returns the collection as a list of dictionaries
+    """
     def __init__(self, cluster: Union[Cluster, None] = None):
         if cluster is not None:
             if not isinstance(cluster, Cluster):
