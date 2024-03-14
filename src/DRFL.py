@@ -6,7 +6,6 @@ from structures import Subsequence, Sequence, Cluster, Routines
 
 from typing import Union
 import matplotlib.pyplot as plt
-import random
 
 
 class DRFL:

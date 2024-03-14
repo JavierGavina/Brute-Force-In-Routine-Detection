@@ -208,7 +208,7 @@ class Sequence:
     def get_dates(self) -> list:
         return [subseq.get_date() for subseq in self.__list_sequences]
 
-    def get_subsequences(self) -> list:
+    def get_subsequences(self) -> list[np.ndarray]:
         return [subseq.get_instance() for subseq in self.__list_sequences]
 
     def to_collection(self) -> list[dict]:
@@ -240,6 +240,7 @@ class Cluster:
         out_string += f"\t -Dates: {[date for date in self.__instances.get_dates()]}\n"
         out_string += f"\t -Starting Points: {[sp for sp in self.__instances.get_starting_points()]}\n)"
         return out_string
+
     def __del__(self):
         del self.__centroid
         del self.__instances
@@ -247,16 +248,16 @@ class Cluster:
     def __len__(self) -> int:
         return len(self.__instances)
 
-    def __getitem__(self, index: int) -> 'Sequence':
+    def __getitem__(self, index: int) -> 'Subsequence':
         return self.__instances[index]
 
-    def __setitem__(self, index: int, value: 'Sequence') -> None:
+    def __setitem__(self, index: int, value: 'Subsequence') -> None:
         self.__instances[index] = value
 
     def __iter__(self):
         return iter(self.__instances)
 
-    def __contains__(self, item: 'Sequence') -> bool:
+    def __contains__(self, item: 'Subsequence') -> bool:
         return item in self.__instances
 
     def __delitem__(self, index: int) -> None:
@@ -264,7 +265,7 @@ class Cluster:
 
     def __add__(self, other: 'Cluster') -> 'Cluster':
         new_instances = self.__instances + other.get_sequences()
-        new_centroid = np.mean(new_instances.get_instances(), axis=0)
+        new_centroid = np.mean(new_instances.get_subsequences(), axis=0)
         return Cluster(centroid=new_centroid, instances=new_instances)
 
     def add_instance(self, new_instance: 'Subsequence') -> None:
@@ -298,8 +299,6 @@ class Cluster:
 
     def get_dates(self) -> list:
         return self.__instances.get_dates()
-
-
 
 
 class Routines:
