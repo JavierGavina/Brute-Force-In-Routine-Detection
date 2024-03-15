@@ -27,17 +27,23 @@ Public methods:
     * get_results: Returns the object Routines, with the discovered routines.
     * plot_results: Plot the results of the algorithm.
         Parameters:
-             - title: Title of the plot.
-             - xlabel: Label of the x axis.
-             - ylabel: Label of the y axis.
-             - figsize: Size of the figure.
-             - xlim: Limits of the x axis.
-             - ylim: Limits of the y axis.
-             - xticklabels_rotation: Rotation of the x tick labels.
-             - yticklabels_rotation: Rotation of the y tick labels.
+            - title: Title of the plot.
+            - title_fontsize: Font size of the title.
+            - xlabel: Label of the x axis.
+            - ylabel: Label of the y axis.
+            - ticks_fontsize: Font size of the ticks.
+            - labels_fontsize: Font size of the labels.
+            - figsize: Size of the figure.
+            - xlim: Limit of the x axis.
+            - ylim: Limit of the y axis.
+            - xticklabels_rotation: Rotation of the x axis labels.
+            - yticklabels_rotation: Rotation of the y axis labels.
+            - show_legend: Show the legend.
+            - legend_title: Title of the legend.
+            - legend_title_fontsize: Font size of the legend title.
+            - legend_labels_fontsize: Font size of the legend labels.
 
 """
-
 import datetime
 
 import numpy as np
@@ -359,8 +365,6 @@ class DRFL:
         """
         return self.routines
 
-    import matplotlib.cm as cm
-
     def plot_results(self, title: str | None = None, title_fontsize: int | None = None,
                      xlabel: str = None, ylabel: str = None, ticks_fontsize: int | None = None,
                      labels_fontsize: int | None = None, figsize: tuple[int, int] = (20, 10),
@@ -369,6 +373,29 @@ class DRFL:
                      xticklabels_rotation: int | None = None, yticklabels_rotation: int | None = None,
                      show_legend: bool = True, legend_title: str = None, legend_title_fontsize: int | None = None,
                      legend_labels_fontsize: int | None = None):
+
+        """
+        This method uses matplotlib to plot the results of the algorithm. The plot shows the time series data with vertical dashed lines indicating the start of each discovered routine. The color of each routine is determined by the order in which they were discovered, and a legend is displayed to identify each routine.
+
+        :param title: str. Title of the plot.
+        :param title_fontsize: int. Font size of the title.
+        :param xlabel: str. Label of the x axis.
+        :param ylabel: str. Label of the y axis.
+        :param ticks_fontsize: int. Font size of the ticks.
+        :param labels_fontsize: int. Font size of the labels.
+        :param figsize: tuple[int, int]. Size of the figure.
+        :param xlim: tuple[datetime.date, datetime.date]. Limit of the x axis.
+        :param ylim: tuple[float | int, float | int]. Limit of the y axis.
+        :param xticklabels_rotation: int. Rotation of the x axis labels.
+        :param yticklabels_rotation: int. Rotation of the y axis labels.
+        :param show_legend: bool = True. Show the legend.
+        :param legend_title: str. Title of the legend.
+        :param legend_title_fontsize: int. Font size of the legend title.
+        :param legend_labels_fontsize: int. Font size of the legend labels.
+
+        Notes:
+           This method so be executed after the fit method to ensure that routines have been discovered and are ready to be displayed.
+        """
 
         colors = cm.rainbow(np.linspace(0, 1, len(self.routines)))
         plt.figure(figsize=figsize)
