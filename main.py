@@ -288,8 +288,11 @@ if __name__ == "__main__":
     routine_detector.fit(time_series)
     routine_detector.show_results()
     routines_detected = routine_detector.get_results()
-    routine_detector.plot_results(title="Gym Routine", xlim=(pd.to_datetime("2024-02-01"), pd.to_datetime("2024-03-31")),
-                                  figsize=(40, 45))
+    routine_detector.plot_results(title="Gym Routine", title_fontsize=40, labels_fontsize=35,
+                                  xlim=(pd.to_datetime("2024-02-01"), pd.to_datetime("2024-03-31")),
+                                  xlabel="Date", ylabel="Gym Frequency", ticks_fontsize=30,
+                                  xticklabels_rotation=90, figsize=(40, 20), legend_title="Routines",
+                                  legend_title_fontsize=40, legend_labels_fontsize=35, show_legend=True)
 
 
 

@@ -1,3 +1,43 @@
+"""
+Discovering Routines of Fixed Length.
+
+This script allows to discover routines of fixed length in a time series. The algorithm is based on the paper "An incremental algorithm for discovering routine behaviors from smart meter data" by Jin Wang, Rachel Cardell-Oliver and Wei Liu.
+
+The algorithm is based on the following steps:
+
+    * Extract subsequences of fixed length from the time series.
+    * Group the subsequences into clusters based on their magnitude and maximum absolute distance.
+    * Filter the clusters based on their frequency.
+    * Test and handle overlapping clusters.
+
+The algorithm is implemented in the class DRFL, which has the following methods and parameters:
+
+The parameters:
+    * m: Length of each secuence
+    * R: Distance threshold
+    * C: Frequency threshold
+    * G: Magnitude threshold
+    * epsilon: Overlap Parameter
+
+Public methods:
+    * fit: Fit the time series to the algorithm.
+         Parameters:
+            - time_series: Temporal data.
+    * show_results: Show the results of the algorithm.
+    * get_results: Returns the object Routines, with the discovered routines.
+    * plot_results: Plot the results of the algorithm.
+        Parameters:
+             - title: Title of the plot.
+             - xlabel: Label of the x axis.
+             - ylabel: Label of the y axis.
+             - figsize: Size of the figure.
+             - xlim: Limits of the x axis.
+             - ylim: Limits of the y axis.
+             - xticklabels_rotation: Rotation of the x tick labels.
+             - yticklabels_rotation: Rotation of the y tick labels.
+
+"""
+
 import datetime
 
 import numpy as np
@@ -6,9 +46,33 @@ from structures import Subsequence, Sequence, Cluster, Routines
 
 from typing import Union
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.patches as mpatches
 
 
 class DRFL:
+    """
+    Discovering Routines of Fixed Length.
+
+    This class allows to discover routines of fixed length in a time series. The algorithm is based on the paper "An incremental algorithm for discovering routine behaviors from smart meter data" by Jin Wang, Rachel Cardell-Oliver and Wei Liu.
+
+    The algorithm is based on the following steps:
+
+            * Extract subsequences of fixed length from the time series.
+            * Group the subsequences into clusters based on their magnitude and maximum absolute distance.
+            * Filter the clusters based on their frequency.
+            * Test and handle overlapping clusters.
+
+    The algorithm is implemented in the class DRFL, which has the following methods and parameters:
+
+    Parameters:
+        * m: Length of each secuence
+        * R: Distance threshold
+        * C: Frequency threshold
+        * G: Magnitude threshold
+        * epsilon: Overlap Parameter
+    """
+
     def __init__(self, m: int, R: float | int, C: int, G: float | int, epsilon: float):
         """
         :param m: Length of each secuence
@@ -17,6 +81,7 @@ class DRFL:
         :param G: Magnitude threshold
         :param epsilon: Overlap Parameter
         """
+
         self.m = m
         self.R = R
         self.C = C
@@ -27,7 +92,13 @@ class DRFL:
         self.time_series = None
 
     @staticmethod
-    def __check_type_time_series(time_series: pd.Series):
+    def __check_type_time_series(time_series: pd.Series) -> None:
+        """
+        Check the type of the time series.
+
+        :param time_series: pd.Series. Temporal data
+        :raises TypeError: If the time series is not a pandas Series.
+        """
         if not isinstance(time_series, pd.Series):
             raise TypeError("time_series must be a pandas Series")
 
@@ -36,12 +107,21 @@ class DRFL:
 
     @staticmethod
     def __minimum_distance_index(distances: Union[np.ndarray, list]) -> int:
+        """
+        Get the index of the minimum distance in a list of distances.
+
+        :param distances: np.array or list. List of distances.
+        :return: int. Index of the minimum distance.
+        """
+
         return np.argmin(distances)
 
-    def __extract_subsequence(self, time_series: pd.Series, t: int):
+    def __extract_subsequence(self, time_series: pd.Series, t: int) -> None:
         """
-        :param time_series: Temporal data
-        :param t: Temporary Instance
+        Extract a subsequence from the time series and adds the subsequence to Sequence object.
+
+        :param time_series: pd.Series. Temporal data.
+        :param t: int. Starting point of the subsequence.
         """
         window = time_series[t:t + self.m]
         subsequence = Subsequence(instance=window.values,
@@ -49,7 +129,15 @@ class DRFL:
                                   starting_point=t)
         self.sequence.add_sequence(subsequence)
 
-    def __IsMatch(self, S1: 'Subsequence', S2: Union[Subsequence | np.ndarray]) -> bool:
+    def __IsMatch(self, S1: 'Subsequence', S2: np.ndarray | Subsequence) -> bool:
+        """
+        Check if two subsequences match by checking if the distance between them is lower than the threshold distance parameter R.
+
+        :param S1: Subsequence. The first subsequence.
+        :param S2: np.array or Subsequence. The second subsequence.
+        :return: bool. True if the distance between the subsequences is lower than the threshold distance parameter R, False otherwise.
+        :raises TypeError: If S1 is not an instance of Subsequence or S2 is not an instance of Subsequence or np.ndarray.
+        """
         if not isinstance(S1, Subsequence):
             raise TypeError("S1 must be instance of Subsequence")
 
@@ -58,7 +146,16 @@ class DRFL:
 
         raise TypeError("S2 must be instance of Subsequence or np.ndarray")
 
-    def __NotTrivialMatch(self, subsequence: Subsequence, cluster: Cluster, start: int):
+    def __NotTrivialMatch(self, subsequence: Subsequence, cluster: Cluster, start: int) -> bool:
+        """
+        Check if a subsequence is not a trivial match with any of the instances of the cluster.
+
+        :param subsequence: Subsequence. The subsequence to check.
+        :param cluster: Cluster. The cluster to check.
+        :param start: int. Starting point of the subsequence.
+        :return: bool. True if the subsequence is not a trivial match with any of the instances of the cluster, False otherwise.
+        :raises TypeError: If subsequence is not an instance of Subsequence or cluster is not an instance of Cluster.
+        """
         if not isinstance(subsequence, Subsequence) or not isinstance(cluster, Cluster):
             raise TypeError("subsequence and cluster must be instances of Subsequence and Cluster respectively")
 
@@ -72,26 +169,48 @@ class DRFL:
 
         return True
 
-    def __SubGroup(self):
+    def __SubGroup(self) -> Routines:
+        """
+        Group the subsequences into clusters based on their magnitude and maximum absolute distance.
+        The steps that follow this algorithm are:
+            * Create a new cluster with the first subsequence.
+            * For each subsequence, check if it is not a trivial match with any of the instances of the cluster.
+            * If it is not a trivial match, append new Sequence on the instances of the cluster.
+            * If it is a trivial match, create a new cluster.
+            * Filter the clusters by frequency.
+
+        :return: Routines. The clusters of subsequences.
+        """
+
         routines = Routines(Cluster(centroid=self.sequence[0].get_instance(),
                                     instances=Sequence(subsequence=self.sequence[0])))
 
         for i in range(1, len(self.sequence)):
+
+            # Check if the magnitude of the subsequence is greater than the threshold magnitude parameter G
             if self.sequence[i].Magnitude() > self.G:
+
+                # Estimate all the distances between the subsequence and all the centroids of the clusters
                 distances = [self.sequence[i].Distance(routines[j].centroid) for j in range(len(routines))]
+
+                # Get the index of the minimum distance to the centroid
                 j_hat = self.__minimum_distance_index(distances)
+
+                # Check if the subsequence is not a trivial match with any of the instances of the cluster
                 if self.__NotTrivialMatch(subsequence=self.sequence[i], cluster=routines[j_hat], start=i):
+
                     # Append new Sequence on the instances of Bm_j
                     routines[j_hat].add_instance(self.sequence[i])
 
                     # Update center of the cluster
                     routines[j_hat].update_centroid()
-
                 else:
+
                     # create a new cluster//routine
                     new_cluster = Cluster(centroid=self.sequence[i].get_instance(),
                                           instances=Sequence(subsequence=self.sequence[i]))
 
+                    # Add the new cluster to the list of clusters // new routine
                     routines.add_routine(new_cluster)
 
         # Filter by frequency
@@ -112,46 +231,77 @@ class DRFL:
         start_j, q = S_j.get_starting_point(), len(S_j.get_instance())
         return not ((start_i + p <= start_j) or (start_j + q <= start_i))
 
-    def __OLTest(self, cluster1: Cluster, cluster2: Cluster, epsilon: float):
+    def __OLTest(self, cluster1: Cluster, cluster2: Cluster, epsilon: float) -> tuple[bool, bool]:
         """
-        Overlap testing for two lists of subsequences.
-        :param cluster1: The first cluster of subsequences.
-        :param cluster2: The second cluster of subsequences.
-        :param epsilon: The overlap parameter.
-        :return: keep tag for both clusters indicating which to keep.
-        """
-        N = 0  # Number of overlaps
-        for S_i in cluster1.get_sequences():
-            auxIndex_i = None
-            for idx, sequence in enumerate(cluster1.get_sequences()):
-                if np.array_equal(sequence.get_instance(), S_i.get_instance()):
-                    auxIndex_i = cluster1.get_starting_points()[idx]
-                    break
-            S_i_info = Subsequence(instance=S_i.get_instance(), date=datetime.datetime.now(), starting_point=auxIndex_i)
-            for S_j in cluster2.get_sequences():
-                auxIndex_j = None
-                for idx, sequence in enumerate(cluster2.get_sequences()):
-                    if np.array_equal(sequence, S_j):
-                        auxIndex_j = cluster2.get_starting_points()[idx]
-                        break
-                S_j_info = Subsequence(instance=S_j.get_instance(), date=datetime.datetime.now(),
-                                       starting_point=auxIndex_j)
-                if self.__IsOverlap(S_i_info, S_j_info):
-                    N += 1
-                    break  # Only need to find one overlap per S_i
+        Test and handle overlapping clusters by determining the significance of their overlap.
 
+        Overlapping clusters are analyzed to decide if one, both, or none should be kept based on the overlap
+        percentage and the clusters' characteristics. This determination is crucial for maintaining the
+        quality and interpretability of the detected routines. The method employs a two-step process: first,
+        it calculates the number of overlapping instances between the two clusters; then, based on the overlap
+        percentage and the clusters' properties (e.g., size and magnitude), it decides which cluster(s) to retain.
+
+        Parameters:
+            cluster1: `Cluster`. The first cluster involved in the overlap test.
+            cluster2: `Cluster`. The second cluster involved in the overlap test.
+            epsilon: `float`. A threshold parameter that defines the minimum percentage of overlap required for considering an overlap significant. Values range from 0 to 1, where a higher value means a stricter criterion for significance.
+
+        Returns:
+            tuple[bool, bool]: A tuple containing two boolean values. The first value indicates whether
+                               cluster1 should be kept (True) or discarded (False). Similarly, the second
+                               value pertains to cluster2.
+
+        Overview of the Method's Logic:
+
+        * Calculate the number of instances in cluster1 that significantly overlap with any instance in cluster2.
+        * determine the significance of the overlap based on the 'epsilon' parameter: if the number of overlaps exceeds 'epsilon' times the smaller cluster's size, the overlap is considered significant.
+        * In case of significant overlap, compare the clusters based on their size and the cumulative magnitude of their instances. The cluster with either a larger size or a greater cumulative magnitude (in case of a size tie) is preferred.
+        * Return a tuple indicating which clusters should be kept. If the overlap is not significant, both clusters may be retained.
+
+        Note:
+
+        * This method relies on private helper methods to calculate overlaps and compare cluster properties.
+        * The method does not modify the clusters directly but provides guidance on which clusters to keep or discard.
+
+        """
+        N = 0  # Initialize counter for number of overlaps
+
+        # Iterate through all instances in cluster1
+        for S_i in cluster1.get_sequences():
+            # Convert instance to Subsequence if needed for overlap checks
+            for S_j in cluster2.get_sequences():
+                # Check for overlap between S_i and S_j
+                if self.__IsOverlap(S_i, S_j):
+                    N += 1  # Increment overlap count
+                    break  # Break after finding the first overlap for S_i
+
+        # Calculate the minimum length of the clusters to determine significance of overlap
         min_len = min(len(cluster1), len(cluster2))
+
+        # Determine if the overlap is significant based on epsilon and the minimum cluster size
         if N > epsilon * min_len:
+            # Calculate cumulative magnitudes for each cluster to decide which to keep
             mag_cluster1 = sum([seq.Magnitude() for seq in cluster1.get_sequences()])
             mag_cluster2 = sum([seq.Magnitude() for seq in cluster2.get_sequences()])
+
+            # Keep the cluster with either more instances or, in a tie, the greater magnitude
             if len(cluster1) > len(cluster2) or (len(cluster1) == len(cluster2) and mag_cluster1 > mag_cluster2):
                 return True, False
             else:
                 return False, True
+        else:
+            # If overlap is not significant, propose to keep both clusters
+            return True, True
 
-        return True, True  # If overlap is not significant, keep both
+    def fit(self, time_series: pd.Series) -> None:
+        """
+        Fits the time series data to the `DRFL` algorithm to discover routines.
 
-    def fit(self, time_series):
+        This method preprocesses the time series data, extracts subsequences, groups them into clusters, and finally filters and handles overlapping clusters to discover and refine routines.
+        :param: time_series: `pd.Series`. The time series data to analyze. It should be a `pandas Series` object with a `DatetimeIndex`.
+        :raises: `TypeError`: If the input time series is not a `pandas Series` or if its index is not a `DatetimeIndex`.
+        """
+
         self.__check_type_time_series(time_series)
         self.time_series = time_series
         for i in range(len(self.time_series) - self.m):
@@ -178,7 +328,16 @@ class DRFL:
             to_drop = [k for k in range(len(self.routines)) if k not in keep_indices]
             self.routines = self.routines.drop_indexes(to_drop)
 
-    def show_results(self):
+    def show_results(self) -> None:
+        """
+        Displays the discovered routines after fitting the model to the time series data.
+
+        This method prints out detailed information about each discovered routine, including the centroid of each cluster, the subsequence instances forming the routine, and the dates/times these routines occur.
+
+        Note:
+            This method should be called after the `fit` method to ensure that routines have been discovered and are ready to be displayed.
+        """
+
         print("Routines detected: ", len(self.routines))
         print("_" * 50)
         for i, b in enumerate(self.routines):
@@ -187,121 +346,59 @@ class DRFL:
             print(f"Date {i + 1}: {b.get_dates()}")
             print("\n", "-" * 50, "\n")
 
-    def get_results(self):
+    def get_results(self) -> Routines:
+        """
+        Returns the discovered routines as a `Routines` object.
+
+        After fitting the model to the time series data, this method can be used to retrieve the discovered routines, encapsulated within a `Routines` object, which contains all the clusters (each representing a routine) identified by the algorithm.
+
+        :return: `Routines`. The discovered routines as a `Routines` object.
+
+        Note:
+            The `Routines` object provides methods and properties to further explore and manipulate the discovered routines.
+        """
         return self.routines
 
-    def plot_results(self, title: str = None, xlabel: str = None,
-                     ylabel: str = None, figsize: tuple[int, int] = None,
-                     xlim: tuple[datetime.date, datetime.date] = None,
-                     ylim: tuple[int | float, int | float] = None,
-                     xticklabels_rotation: int = None, yticklabels_rotation: int = None):
+    import matplotlib.cm as cm
 
-        # Plot the results
-        colors = ["lightblue", "lightgreen", "lightyellow", "lightblack", "lightorange", "lightpurple", "lightpink",
-                  "red", "blue", "green", "yellow", "black", "orange", "purple", "pink", "brown", "grey",
-                  "lightbrown", "lightgrey", "lightred", "lightblue", "lightgreen", "lightyellow", "lightblack",
-                  "lightorange", "lightpurple", "lightpink",
-                  "red", "blue", "green", "yellow", "black", "orange", "purple", "pink", "brown", "grey"]
+    def plot_results(self, title: str | None = None, title_fontsize: int | None = None,
+                     xlabel: str = None, ylabel: str = None, ticks_fontsize: int | None = None,
+                     labels_fontsize: int | None = None, figsize: tuple[int, int] = (20, 10),
+                     xlim: tuple[datetime.date, datetime.date] | None = None,
+                     ylim: tuple[int | float, int | float] | None = None,
+                     xticklabels_rotation: int | None = None, yticklabels_rotation: int | None = None,
+                     show_legend: bool = True, legend_title: str = None, legend_title_fontsize: int | None = None,
+                     legend_labels_fontsize: int | None = None):
 
-        if figsize is not None:
-            plt.figure(figsize=figsize)
-        else:
-            plt.figure(figsize=(20, 10))
+        colors = cm.rainbow(np.linspace(0, 1, len(self.routines)))
+        plt.figure(figsize=figsize)
 
-        # Create a color list for the bars
         bar_colors = ['gray'] * len(self.time_series)
-
         for idx, cluster in enumerate(self.routines):
             for i in cluster.get_dates():
-                # Find the indices of the bars between i and i+7
                 bar_indices = (self.time_series.index >= i) & (self.time_series.index < i + pd.Timedelta(days=self.m))
-                # Color the bars between i and i+7 with the corresponding color
                 for j, is_colored in enumerate(bar_indices):
                     if is_colored:
+                        plt.axvline(x=i, color=colors[idx], linestyle='--')
                         bar_colors[j] = colors[idx]
 
-        # Create a bar plot with the specified colors
         plt.bar(self.time_series.index, self.time_series.values, color=bar_colors)
 
-        # Set the title, xlabel, and ylabel
-        if title is not None:
-            plt.title(title)
-        if xlabel is not None:
-            plt.xlabel(xlabel)
-        if ylabel is not None:
-            plt.ylabel(ylabel)
+        plt.title(title, fontsize=title_fontsize)
+        plt.xlabel(xlabel, fontsize=labels_fontsize)
+        plt.ylabel(ylabel, fontsize=labels_fontsize)
 
-        # Set the x and y limits
-        if xlim is not None:
-            plt.xlim(xlim)
-        if ylim is not None:
-            plt.ylim(ylim)
+        if xlim: plt.xlim(xlim)
+        if ylim: plt.ylim(ylim)
 
-        # Set the x and y ticks
-        if xticklabels_rotation is not None:
-            plt.xticks(rotation=xticklabels_rotation)
-        if yticklabels_rotation is not None:
-            plt.yticks(rotation=yticklabels_rotation)
+        plt.xticks(rotation=xticklabels_rotation or 0, fontsize=ticks_fontsize)
+        plt.yticks(rotation=yticklabels_rotation or 0, fontsize=ticks_fontsize)
+
+        if show_legend:
+            legend_labels = [f'Routine {i + 1}' for i in range(len(self.routines))]
+            patches = [mpatches.Patch(color=colors[i], label=legend_labels[i]) for i in range(len(legend_labels))]
+            plt.legend(handles=patches, loc='upper right', title=legend_title or '',
+                       fontsize=legend_labels_fontsize or labels_fontsize,
+                       title_fontsize=legend_title_fontsize or title_fontsize)
 
         plt.show()
-
-# if __name__ == "__main__":
-#     # PARAMS
-#     target_routine_1 = [20, 50, 70, 30]
-#     target_routine_2 = [30, 30, 60, 30]
-#     noise_threshold_minutes = 4
-#     T_max = 21
-#     idx_routine1 = [0, 1, 3, 5, 6, 8, 10, 11, 16, 17, 20]
-#
-#
-#     def randomized_routine(routine, noise_threshold):
-#         return [random.randint(x - noise_threshold, x + noise_threshold) for x in routine]
-#
-#
-#     def get_colors(idx_routine):
-#         colores = []
-#         for x in range(T_max):
-#             if x in idx_routine:
-#                 for y in range(len(target_routine_1)):
-#                     colores.append("red")
-#             else:
-#                 for y in range(len(target_routine_1)):
-#                     colores.append("blue")
-#         return colores
-#
-#
-#     time_series = []
-#     for x in range(T_max):
-#         if x in idx_routine1:
-#             random_1 = randomized_routine(target_routine_1, noise_threshold_minutes)
-#             for y in random_1:
-#                 time_series.append(y)
-#         else:
-#             random_2 = randomized_routine(target_routine_2, noise_threshold_minutes)
-#             for y in random_2:
-#                 time_series.append(y)
-#
-#     time_series = np.array(time_series)
-#
-#     # Plotting the bar chart with vertical lines every 4 bars
-#     plt.figure(figsize=(T_max, 2))
-#     bars = plt.bar(x=[x for x in range(len(time_series))], height=time_series, color=get_colors(idx_routine1))
-#
-#     # Draw a vertical line every four bars
-#     for i in range(0, len(time_series), len(target_routine_1)):
-#         plt.axvline(x=i - 0.5, color='grey', linestyle='--')
-#     plt.xticks(ticks=[x for x in range(len(time_series))],
-#                labels=pd.date_range(start="2024-01-01", periods=len(time_series)),
-#                rotation=90)
-#     plt.show()
-#
-#     time_series = pd.DataFrame(
-#         {
-#             "Date": pd.date_range(start="2024-01-01", periods=len(time_series)),
-#             "Time-Series": time_series
-#         }
-#     ).set_index("Date")["Time-Series"]
-#
-#     routine_detector = DRFL(m=4, R=8, C=5, G=50, epsilon=0.5)
-#     routine_detector.fit(time_series)
-#     routine_detector.show_results()
