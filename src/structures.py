@@ -396,10 +396,32 @@ class Cluster:
         * update_centroid: updates the centroid of the cluster
         * get_starting_points: returns the starting points of the subsequences
         * get_dates: returns the dates of the subsequences
+
+    Examples:
+        >>> sequence = Sequence()
+        >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+        >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+        >>> cluster = Cluster(np.array([3, 4, 5, 6]), sequence)
+        >>> cluster.get_sequences().to_collection()
+        [{'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0},
+         {'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 4}]
+        >>> cluster.get_starting_points()
+        [0, 4]
+        >>> cluster.get_dates()
+        [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)]
+        >>> cluster.centroid
+        np.array([3, 4, 5, 6])
+        >>> cluster.centroid = np.array([1, 2, 3, 4])
+        >>> cluster.centroid
+        np.array([1, 2, 3, 4])
+        >>> cluster.update_centroid()
+        >>> cluster.centroid
+        np.array([3, 4, 5, 6])
     """
+
     def __init__(self, centroid: np.ndarray, instances: 'Sequence'):
-        self.__centroid = centroid
-        self.__instances = instances
+        self.__centroid: np.ndarray = centroid
+        self.__instances: Sequence = instances
 
     def __str__(self):
         out_string = f"Cluster(\n\t -Centroid: {self.__centroid} \n"
@@ -479,7 +501,7 @@ class Cluster:
         return self.__centroid
 
     @centroid.setter
-    def centroid(self, subsequence: Union['Subsequence'|np.ndarray]) -> None:
+    def centroid(self, subsequence: np.ndarray | Subsequence) -> None:
         """
         Sets the value of the centroid of the cluster from a subsequence
         :param subsequence: Union[Subsequence|np.ndarray]. The subsequence to set as the centroid
@@ -491,7 +513,8 @@ class Cluster:
         if isinstance(subsequence, np.ndarray):
             self.__centroid = subsequence
 
-        raise TypeError("subsequence must be an instance of Subsequence or a numpy array")
+        if not isinstance(subsequence, Subsequence) and not isinstance(subsequence, np.ndarray):
+            raise TypeError(f"subsequence must be an instance of Subsequence or a numpy array")
 
     def get_starting_points(self) -> list[int]:
         """
@@ -520,8 +543,27 @@ class Routines:
         * drop_indexes: drops the clusters with the specified indexes
         * get_routines: returns the clusters of the collection
         * to_collection: returns the collection as a list of dictionaries
+
+    Examples:
+        >>> sequence = Sequence()
+        >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+        >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+        >>> cluster = Cluster(np.array([3, 4, 5, 6]), sequence)
+        >>> routines = Routines(cluster)
+        >>> routines.get_routines()
+        [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0), Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)]))]
+        >>> routines.add_routine(cluster)
+        >>> routines.get_routines()
+        [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0), Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)])), Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0), Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)]))]
+        >>> routines.drop_indexes([0])
+        [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0), Subsequence(instance=np.array([5, 6, 7, 8
     """
+
     def __init__(self, cluster: Union[Cluster, None] = None):
+        """
+        :param cluster: Union[Cluster, None], the cluster to add to the collection
+        :raises TypeError: if the parameter is not of the correct type
+        """
         if cluster is not None:
             if not isinstance(cluster, Cluster):
                 raise TypeError("cluster has to be an instance of Cluster")
@@ -547,22 +589,45 @@ class Routines:
         return out_string
 
     def add_routine(self, new_routine: 'Cluster') -> None:
+        """
+        Adds a cluster to the collection
+
+        :param new_routine: Cluster. The cluster to add
+        :raises TypeError: if the parameter is not of the correct type
+
+        """
         if not isinstance(new_routine, Cluster):
             raise TypeError("new_routine has to be an instance of Cluster")
 
         self.__routines.append(new_routine)
 
     def drop_indexes(self, to_drop: list[int]) -> 'Routines':
+        """
+        Drops the clusters with the specified indexes
+
+        :param to_drop: list[int]. The indexes of the clusters to drop
+        :return: Routines. The collection without the dropped clusters
+        """
+
         new_routines = Routines()
         for idx, cluster in enumerate(self.__routines):
             if idx not in to_drop:
                 new_routines.add_routine(cluster)
         return new_routines
 
-    def get_routines(self) -> list:
+    def get_routines(self) -> list[Cluster]:
+        """
+        Returns the clusters of the collection
+        :return: list. Returns all the clusters of the routines
+        """
+
         return self.__routines
 
-    def to_collection(self) -> list:
+    def to_collection(self) -> list[dict]:
+        """
+        Returns the collection as a list of dictionaries
+        :return: list[dict]. The collection as a list of dictionaries
+        """
         collection = []
         for routine in self.__routines:
             collection.append({
