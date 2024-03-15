@@ -530,6 +530,14 @@ class Cluster:
         """
         return self.__instances.get_dates()
 
+    def cumulative_magnitude(self) -> float | int:
+        """
+        Returns the magnitude's sum of the subsequences that belongs to the instances within the cluster
+
+        :return: `float`. The magnitude's sum of the subsequences
+        """
+        return sum([subsequence.Magnitude() for subsequence in self.__instances])
+
 
 class Routines:
     """

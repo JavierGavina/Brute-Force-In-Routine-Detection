@@ -88,14 +88,14 @@ class DRFL:
         :param epsilon: Overlap Parameter
         """
 
-        self.m = m
-        self.R = R
-        self.C = C
-        self.G = G
-        self.epsilon = epsilon
-        self.routines = Routines()
-        self.sequence = Sequence()
-        self.time_series = None
+        self.m: int = m
+        self.R: int | float = R
+        self.C: int = C
+        self.G: int | float = G
+        self.epsilon: float = epsilon
+        self.routines: Routines = Routines()
+        self.sequence: Sequence = Sequence()
+        self.time_series: pd.Series
 
     @staticmethod
     def __check_type_time_series(time_series: pd.Series) -> None:
@@ -135,12 +135,14 @@ class DRFL:
                                   starting_point=t)
         self.sequence.add_sequence(subsequence)
 
-    def __IsMatch(self, S1: 'Subsequence', S2: np.ndarray | Subsequence) -> bool:
+    @staticmethod
+    def __IsMatch(S1: 'Subsequence', S2: np.ndarray | Subsequence, R: int | float) -> bool:
         """
         Check if two subsequences match by checking if the distance between them is lower than the threshold distance parameter R.
 
         :param S1: Subsequence. The first subsequence.
         :param S2: np.array or Subsequence. The second subsequence.
+        :param R: int or float. The threshold distance parameter.
         :return: bool. True if the distance between the subsequences is lower than the threshold distance parameter R, False otherwise.
         :raises TypeError: If S1 is not an instance of Subsequence or S2 is not an instance of Subsequence or np.ndarray.
         """
@@ -148,43 +150,47 @@ class DRFL:
             raise TypeError("S1 must be instance of Subsequence")
 
         if isinstance(S2, Subsequence) or isinstance(S2, np.ndarray):
-            return S1.Distance(S2) <= self.R
+            return S1.Distance(S2) <= R
 
         raise TypeError("S2 must be instance of Subsequence or np.ndarray")
 
-    def __NotTrivialMatch(self, subsequence: Subsequence, cluster: Cluster, start: int) -> bool:
+    def __NotTrivialMatch(self, subsequence: Subsequence, cluster: Cluster, start: int, R: int | float) -> bool:
         """
         Check if a subsequence is not a trivial match with any of the instances of the cluster.
 
         :param subsequence: Subsequence. The subsequence to check.
         :param cluster: Cluster. The cluster to check.
         :param start: int. Starting point of the subsequence.
+        :param R: int or float. The threshold distance parameter.
         :return: bool. True if the subsequence is not a trivial match with any of the instances of the cluster, False otherwise.
         :raises TypeError: If subsequence is not an instance of Subsequence or cluster is not an instance of Cluster.
         """
         if not isinstance(subsequence, Subsequence) or not isinstance(cluster, Cluster):
             raise TypeError("subsequence and cluster must be instances of Subsequence and Cluster respectively")
 
-        if not self.__IsMatch(S1=subsequence, S2=cluster.centroid):
+        if not self.__IsMatch(S1=subsequence, S2=cluster.centroid, R=R):
             return False
 
         for end in cluster.get_starting_points():
             for t in reversed(range(start + 1, end)):
-                if self.__IsMatch(S1=subsequence, S2=self.sequence.get_by_starting_point(t)):
+                if self.__IsMatch(S1=subsequence, S2=self.sequence.get_by_starting_point(t), R=R):
                     return False
 
         return True
 
-    def __SubGroup(self) -> Routines:
+    def __SubGroup(self, R: float | int, C: int, G: float | int) -> Routines:
         """
         Group the subsequences into clusters based on their magnitude and maximum absolute distance.
         The steps that follow this algorithm are:
             * Create a new cluster with the first subsequence.
-            * For each subsequence, check if it is not a trivial match with any of the instances of the cluster.
+            * For each subsequence, check if it is not a trivial match with any of the instances within the cluster.
             * If it is not a trivial match, append new Sequence on the instances of the cluster.
             * If it is a trivial match, create a new cluster.
             * Filter the clusters by frequency.
 
+        :param R: float or int. Distance threshold.
+        :param C: int. Frequency threshold.
+        :param G: float or int. Magnitude threshold.
         :return: Routines. The clusters of subsequences.
         """
 
@@ -194,7 +200,7 @@ class DRFL:
         for i in range(1, len(self.sequence)):
 
             # Check if the magnitude of the subsequence is greater than the threshold magnitude parameter G
-            if self.sequence[i].Magnitude() > self.G:
+            if self.sequence[i].Magnitude() > G:
 
                 # Estimate all the distances between the subsequence and all the centroids of the clusters
                 distances = [self.sequence[i].Distance(routines[j].centroid) for j in range(len(routines))]
@@ -202,8 +208,8 @@ class DRFL:
                 # Get the index of the minimum distance to the centroid
                 j_hat = self.__minimum_distance_index(distances)
 
-                # Check if the subsequence is not a trivial match with any of the instances of the cluster
-                if self.__NotTrivialMatch(subsequence=self.sequence[i], cluster=routines[j_hat], start=i):
+                # Check if the subsequence is not a trivial match with any of the instances within the cluster
+                if self.__NotTrivialMatch(subsequence=self.sequence[i], cluster=routines[j_hat], start=i, R=R):
 
                     # Append new Sequence on the instances of Bm_j
                     routines[j_hat].add_instance(self.sequence[i])
@@ -220,7 +226,7 @@ class DRFL:
                     routines.add_routine(new_cluster)
 
         # Filter by frequency
-        to_drop = [k for k in range(len(routines)) if len(routines[k]) < self.C]
+        to_drop = [k for k in range(len(routines)) if len(routines[k]) < C]
         filtered_routines = routines.drop_indexes(to_drop)
 
         return filtered_routines
@@ -286,9 +292,10 @@ class DRFL:
 
         # Determine if the overlap is significant based on epsilon and the minimum cluster size
         if N > epsilon * min_len:
+
             # Calculate cumulative magnitudes for each cluster to decide which to keep
-            mag_cluster1 = sum([seq.Magnitude() for seq in cluster1.get_sequences()])
-            mag_cluster2 = sum([seq.Magnitude() for seq in cluster2.get_sequences()])
+            mag_cluster1 = cluster1.cumulative_magnitude()
+            mag_cluster2 = cluster2.cumulative_magnitude()
 
             # Keep the cluster with either more instances or, in a tie, the greater magnitude
             if len(cluster1) > len(cluster2) or (len(cluster1) == len(cluster2) and mag_cluster1 > mag_cluster2):
@@ -298,6 +305,29 @@ class DRFL:
         else:
             # If overlap is not significant, propose to keep both clusters
             return True, True
+
+    def __obtain_keep_indices(self, epsilon) -> list[int]:
+        """
+        Obtain the indices of the clusters to keep based on the overlap test.
+
+        :return: `list[int]`. The indices of the clusters to keep.
+        """
+
+        # Prepare to test and handle overlapping clusters
+        keep_indices = set(range(len(self.routines)))  # Initially, assume all clusters are to be kept
+
+        for i in range(len(self.routines) - 1):
+            for j in range(i + 1, len(self.routines)):
+                if i in keep_indices and j in keep_indices:  # Process only if both clusters are still marked to keep
+                    keep_i, keep_j = self.__OLTest(self.routines[i], self.routines[j], epsilon)
+
+                    # Update keep indices based on OLTest outcome
+                    if not keep_i:
+                        keep_indices.remove(i)
+                    if not keep_j:
+                        keep_indices.remove(j)
+
+        return list(keep_indices)
 
     def fit(self, time_series: pd.Series) -> None:
         """
@@ -313,21 +343,12 @@ class DRFL:
         for i in range(len(self.time_series) - self.m):
             self.__extract_subsequence(self.time_series, i)
 
-        self.routines = self.__SubGroup()
+        # Group the subsequences into clusters based on their magnitude and
+        # maximum absolute distance and filter the clusters based on their frequency
+        self.routines = self.__SubGroup(R=self.R, C=self.C, G=self.G)
 
-        # Prepare to test and handle overlapping clusters
-        keep_indices = set(range(len(self.routines)))  # Initially, assume all clusters are to be kept
-
-        for i in range(len(self.routines) - 1):
-            for j in range(i + 1, len(self.routines)):
-                if i in keep_indices and j in keep_indices:  # Process only if both clusters are still marked to keep
-                    keep_i, keep_j = self.__OLTest(self.routines[i], self.routines[j], self.epsilon)
-
-                    # Update keep indices based on OLTest outcome
-                    if not keep_i:
-                        keep_indices.remove(i)
-                    if not keep_j:
-                        keep_indices.remove(j)
+        # Obtain the indices of the clusters to keep based on the overlap test
+        keep_indices = self.__obtain_keep_indices(self.epsilon)
 
         # Filter self.routines to keep only those clusters marked for keeping
         if len(self.routines) > 0:
@@ -400,10 +421,13 @@ class DRFL:
         colors = cm.rainbow(np.linspace(0, 1, len(self.routines)))
         plt.figure(figsize=figsize)
 
+        # Set bar colors based on the discovered routines
         bar_colors = ['gray'] * len(self.time_series)
         for idx, cluster in enumerate(self.routines):
             for i in cluster.get_dates():
+                # Set vertical dashed lines to indicate the start of each discovered routine and color them based on the order of discovery
                 bar_indices = (self.time_series.index >= i) & (self.time_series.index < i + pd.Timedelta(days=self.m))
+
                 for j, is_colored in enumerate(bar_indices):
                     if is_colored:
                         plt.axvline(x=i, color=colors[idx], linestyle='--')
@@ -411,16 +435,20 @@ class DRFL:
 
         plt.bar(self.time_series.index, self.time_series.values, color=bar_colors)
 
+        # Set title and labels params
         plt.title(title, fontsize=title_fontsize)
         plt.xlabel(xlabel, fontsize=labels_fontsize)
         plt.ylabel(ylabel, fontsize=labels_fontsize)
 
+        # Set limits params
         if xlim: plt.xlim(xlim)
         if ylim: plt.ylim(ylim)
 
+        # Set ticks params
         plt.xticks(rotation=xticklabels_rotation or 0, fontsize=ticks_fontsize)
         plt.yticks(rotation=yticklabels_rotation or 0, fontsize=ticks_fontsize)
 
+        # set legend params
         if show_legend:
             legend_labels = [f'Routine {i + 1}' for i in range(len(self.routines))]
             patches = [mpatches.Patch(color=colors[i], label=legend_labels[i]) for i in range(len(legend_labels))]
