@@ -49,8 +49,6 @@ import numpy as np
 import datetime
 from typing import Union, Optional
 
-from numpy import ndarray
-
 
 class Subsequence:
     """
@@ -312,10 +310,10 @@ class Subsequence:
 
     def Magnitude(self) -> float:
         """
-        Returns the magnitude of the subsequence
+        Returns the magnitude of the subsequence as the maximum value
 
         Returns:
-             np.max. The magnitude of the subsequence
+             `float`. The magnitude of the subsequence
 
         Examples:
             >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
@@ -354,6 +352,7 @@ class Subsequence:
         if isinstance(other, Subsequence):
             return np.max(np.abs(self.__instance - other.get_instance()))
 
+        # If the parameter is not an instance of Subsequence or an array, raise an error
         raise TypeError("other must be an instance of ndarray or a Subsequence")
 
 
@@ -390,10 +389,10 @@ class Sequence:
          {'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 4}]
     """
 
-    def __init__(self, subsequence: Union[Subsequence, None] = None) -> None:
+    def __init__(self, subsequence: Optional[Subsequence] = None) -> None:
         """
         Parameters:
-            * subsequence: Union[Subsequence, None], the subsequence to add to the sequence
+            * subsequence: Optional[Subsequence], the subsequence to add to the sequence
 
         Raises:
             TypeError: if the parameter is not of the correct type
@@ -403,16 +402,17 @@ class Sequence:
             >>> sequence2 = Sequence()
             >>> sequence2.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
         """
+
         # Check if the subsequence is a Subsequence instance
         if subsequence is not None:
             if not isinstance(subsequence, Subsequence):
                 raise TypeError("subsequence has to be an instance of Subsequence")
 
-            self.__list_sequences = [subsequence]
+            self.__list_sequences: list[Subsequence] = [subsequence]
 
         # If the subsequence is None, initialize an empty list
         else:
-            self.__list_sequences = []
+            self.__list_sequences: list[Subsequence] = []
 
     def __repr__(self):
         """
@@ -471,7 +471,7 @@ class Sequence:
 
     def __len__(self) -> int:
         """
-        Returns the number of subsequences in the sequence
+        Returns the number of `Subsequence` instances in the `Sequence`
 
         Returns:
             `int`. The number of subsequences in the sequence
@@ -717,9 +717,11 @@ class Sequence:
                 ]
             )
         """
+        # Check if the new sequence is a Subsequence instance
         if not isinstance(new, Subsequence):
             raise TypeError("new has to be an instance of Subsequence")
 
+        # Check if the new sequence already exists
         if self._alreadyExists(new):
             raise RuntimeError("new sequence already exists ")
 
@@ -745,6 +747,7 @@ class Sequence:
             >>> sequence.get_by_starting_point(2)
             None
         """
+
         for subseq in self.__list_sequences:
             if subseq.get_starting_point() == starting_point:
                 return subseq
@@ -1259,8 +1262,12 @@ class Cluster:
     def centroid(self, subsequence: np.ndarray | Subsequence) -> None:
         """
         Sets the value of the centroid of the cluster from a subsequence
-        :param subsequence: Union[Subsequence|np.ndarray]. The subsequence to set as the centroid
-        :raises TypeError: if the parameter is not a Subsequence or a numpy array
+
+        Parameters:
+            * subsequence: `Union[Subsequence|np.ndarray]`. The subsequence to set as the centroid
+
+        Raises:
+            TypeError: if the parameter is not a `Subsequence` or a numpy array
         """
         if isinstance(subsequence, Subsequence):
             self.__centroid = subsequence.get_instance()
@@ -1274,23 +1281,31 @@ class Cluster:
     def get_starting_points(self) -> list[int]:
         """
         Returns the starting points of the subsequences
-        :return: list[int]. The starting points of the subsequences
+
+        Returns:
+             `list[int]`. The starting points of the subsequences
         """
+
         return self.__instances.get_starting_points()
 
     def get_dates(self) -> list[datetime.date]:
         """
         Returns the dates of the subsequences
-        :return: list[datetime.date]. The dates of the subsequences
+
+        Returns:
+             `list[datetime.date]`. The dates of the subsequences
         """
+
         return self.__instances.get_dates()
 
     def cumulative_magnitude(self) -> float | int:
         """
         Returns the magnitude's sum of the subsequences that belongs to the instances within the cluster
 
-        :return: `float`. The magnitude's sum of the subsequences
+        Returns:
+             `float`. The magnitude's sum of the subsequences
         """
+
         return sum([subsequence.Magnitude() for subsequence in self.__instances])
 
 
@@ -1324,18 +1339,50 @@ class Routines:
 
     def __init__(self, cluster: Optional[Cluster] = None) -> None:
         """
-        :param cluster: Optional[Cluster], the cluster to add to the collection
-        :raises TypeError: if the parameter is not of the correct type
+        Parameters:
+            * cluster: `Optional[Cluster]`, the cluster to add to the routines. Default is None
+
+        Raises:
+             TypeError: if the parameter is not an instance of cluster
+
+        Examples:
+             >>> routines = Routines()
+             >>> print(routines)
+             Routines(
+                list_routines = [[]]
+             )
+
+             >>> sequence = Sequence(subsequence=Subsequence(np.array([1,2,3], datetime.date(2024, 1, 1), 1)))
+             >>> routines = Routines(Cluster(centroid=np.array([1,2,3], instances=sequence)))
+             >>> print(routines)
+             Routines(
+                list_routines = [
+                    Cluster(
+                        - centroid = [1,2,3],
+                        - instances = [[1,2,3]]
+                        - starting_points = [1]
+                        - dates = [datetime.date(2024, 1, 1)]
+                    )
+                ]
+             )
         """
+
         if cluster is not None:
             if not isinstance(cluster, Cluster):
                 raise TypeError("cluster has to be an instance of Cluster")
 
-            self.__routines = [cluster]
+            self.__routines: list[Cluster] = [cluster]
         else:
-            self.__routines = []
+            self.__routines: list[Cluster] = []
 
     def __repr__(self):
+        """
+        Returns the string representation of the routines
+
+        Returns:
+            `str`. The string representation of the routines
+        """
+
         out_string = "Routines(\n\tlist_routines=[[\n"
         for routine in self.__routines:
             out_string += f" {routine},\n"
@@ -1344,6 +1391,13 @@ class Routines:
         return out_string
 
     def __str__(self):
+        """
+        Returns the string representation of the routines
+
+        Returns:
+            `str`. The string representation of the routines
+        """
+
         out_string = "Routines(\n\tlist_routines=[[\n"
         for routine in self.__routines:
             out_string += f" {routine},\n"
@@ -1351,14 +1405,272 @@ class Routines:
         out_string = out_string[:-2] + out_string[-1] + "])"
         return out_string
 
+    def __len__(self) -> int:
+        """
+        Returns the number of clusters in the `Routines`
+
+        Returns:
+            `int`. The number of clusters in the `Routines`
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> len(routines)
+            2
+        """
+
+        return len(self.__routines)
+
+    def __getitem__(self, index: int) -> 'Cluster':
+        """
+        Get the cluster at the specified index in the collection
+
+        Parameters:
+            * index: `int`. The index of the cluster
+
+        Returns:
+            `Cluster`. The cluster at the specified index in the collection
+
+        Raises:
+            TypeError: if the index is not an integer
+            IndexError: if the index is out of range of the routines
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> print(routines[0])
+            Cluster(
+                - centroid = [3, 4, 5, 6],
+                - instances = [[1, 2, 3, 4]]
+                - starting_points = [0]
+                - dates = [datetime.date(2021, 1, 1)]
+            )
+        """
+        # Check if the index is an integer
+        if not isinstance(index, int):
+            raise TypeError("index must be an integer")
+
+        # Check if the index is within the range of the list
+        if not 0 <= index < len(self.__routines):
+            raise IndexError("index out of range")
+
+        return self.__routines[index]
+
+    def __setitem__(self, index: int, value: 'Cluster') -> None:
+        """
+        Set the value of the cluster at the specified index in the collection
+
+        Parameters:
+            * index: `int`. The index of the cluster
+            * value: `Cluster`. The new cluster
+
+        Raises:
+            TypeError: if the index is not an integer or the value is not an instance of Cluster
+            IndexError: if the index is out of range of the routines
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> routines[0] = Cluster(np.array([11, 12, 13, 14]), Sequence(Subsequence(np.array([9, 10, 11, 12]), datetime.date(2021, 1, 3), 4))
+            >>> print(routines[0])
+            Cluster(
+                - centroid = [11, 12, 13, 14],
+                - instances = [[9, 10, 11, 12]]
+                - starting_points = [4]
+                - dates = [datetime.date(2021, 1, 3)]
+            )
+        """
+        # Check if the value is a Cluster instance
+        if not isinstance(value, Cluster):
+            raise TypeError("value has to be an instance of Cluster")
+
+        # Check if the index is an integer
+        if not isinstance(index, int):
+            raise TypeError("index has to be an integer")
+
+        # Check if the index is within the range of the list
+        if not 0 <= index < len(self.__routines):
+            raise IndexError("index out of range")
+
+        self.__routines[index] = value
+
+    def __iter__(self) -> iter:
+        """
+        Returns an iterator for each cluster in the `Routines`
+
+        Returns:
+            iter. An iterator for each cluster in the `Routines`
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> for cluster in routines:
+            ...     print(cluster)
+            Cluster(
+                - centroid = [3, 4, 5, 6],
+                - instances = [[1, 2, 3, 4]]
+                - starting_points = [0]
+                - dates = [datetime.date(2021, 1, 1)]
+            )
+            Cluster(
+                - centroid = [7, 8, 9, 10],
+                - instances = [[5, 6, 7, 8]]
+                - starting_points = [4]
+                - dates = [datetime.date(2021, 1, 2)]
+            )
+        """
+
+        return iter(self.__routines)
+
+    def __contains__(self, item: 'Cluster') -> bool:
+        """
+        Check if the cluster exists in the collection
+
+        Parameters:
+            * item: `Cluster`. The cluster to check
+
+        Returns:
+            `bool`. `True` if the cluster exists, `False` otherwise
+
+        Raises:
+            TypeError: if the parameter is not an instance of Cluster
+        """
+
+        # Check if the item is a Cluster instance
+        if not isinstance(item, Cluster):
+            raise TypeError("item has to be an instance of Cluster")
+
+        return item in self.__routines
+
+    def __delitem__(self, index: int) -> None:
+        """
+        Deletes the cluster at the specified index in the collection
+
+        Parameters:
+            * index: `int`. The index of the cluster to delete
+
+        Returns:
+            `Cluster`. The cluster at the specified index in the collection
+
+        Raises:
+            TypeError: if the index is not an integer
+            IndexError: if the index is out of range of the routines
+        """
+
+        # Check if the index is an integer
+        if not isinstance(index, int):
+            raise TypeError("index has to be an integer")
+
+        # Check if the index is within the range of the list
+        if not 0 <= index < len(self.__routines):
+            raise IndexError("index out of range")
+
+        del self.__routines[index]
+
+    def __add__(self, other: 'Routines') -> 'Routines':
+        """
+        Concatenates two routines together with the operator + and returns a new collection
+
+        Parameters:
+            * other: `Routines`. The collection to concatenate
+
+        Returns:
+            `Routines`. The concatenated `Routines`
+
+        Raises:
+            TypeError: if the parameter is not an instance of Routines
+
+        Examples:
+            >>> routines1 = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines1.add_routine(cluster1)
+            >>> routines1.add_routine(cluster2)
+            >>> routines2 = Routines()
+            >>> cluster3 = Cluster(np.array([11, 12, 13, 14]), Sequence(Subsequence(np.array([9, 10, 11, 12]), datetime.date(2021, 1, 3), 4))
+            >>> routines2.add_routine(cluster3)
+            >>> new_routines = routines1 + routines2
+            >>> print(new_routines)
+            Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid = [3, 4, 5, 6],
+                        - instances = [[1, 2, 3, 4]]
+                        - starting_points = [0]
+                        - dates = [datetime.date(2021, 1, 1)]
+                    ),
+                    Cluster(
+                        - centroid = [7, 8, 9, 10],
+                        - instances = [[5, 6, 7, 8]]
+                        - starting_points = [4]
+                        - dates = [datetime.date(2021, 1, 2)]
+                    ),
+                    Cluster(
+                        - centroid = [11, 12, 13, 14],
+                        - instances = [[9, 10, 11, 12]]
+                        - starting_points = [4]
+                        - dates = [datetime.date(2021, 1, 3)]
+                    )
+                ]
+            )
+        """
+
+        # Check if the other is a Routines instance
+        if not isinstance(other, Routines):
+            raise TypeError("other has to be an instance of Routines")
+
+        new_routines = Routines()
+        new_routines.__routines = self.__routines + other.__routines
+        return new_routines
+
     def add_routine(self, new_routine: 'Cluster') -> None:
         """
         Adds a cluster to the collection
 
-        :param new_routine: Cluster. The cluster to add
-        :raises TypeError: if the parameter is not of the correct type
+        Parameters:
+            new_routine: `Cluster`. The cluster to add
 
+        Raises:
+             TypeError: if the parameter is not of the correct type
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> print(routines)
+            Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid = [3, 4, 5, 6],
+                        - instances = [[1, 2, 3, 4]]
+                        - starting_points = [0]
+                        - dates = [datetime.date(2021, 1, 1)]
+                    ),
+                    Cluster(
+                        - centroid = [7, 8, 9, 10],
+                        - instances = [[5, 6, 7, 8]]
+                        - starting_points = [4]
+                        - dates = [datetime.date(2021, 1, 2)]
+                    )
+                ]
+            )
         """
+
+        # Check if the new_routine is a Cluster instance
         if not isinstance(new_routine, Cluster):
             raise TypeError("new_routine has to be an instance of Cluster")
 
@@ -1368,8 +1680,36 @@ class Routines:
         """
         Drops the clusters with the specified indexes
 
-        :param to_drop: list[int]. The indexes of the clusters to drop
-        :return: Routines. The collection without the dropped clusters
+        Parameters:
+            to_drop: `list[int]`. The indexes of the clusters to drop
+
+        Returns:
+             Routines. The collection without the dropped clusters
+
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 2)))
+            >>> cluster3 = Cluster(np.array([11, 12, 13, 14]), Sequence(Subsequence(np.array([9, 10, 11, 12]), datetime.date(2021, 1, 3), 4)))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> routines.add_routine(cluster3)
+            >>> filtered_routines = routines.drop_indexes([0, 2])
+            >>> print(filtered_routines)
+            Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid = [11, 12, 13, 14],
+                        - instances = [[9, 10, 11, 12]]
+                        - starting_points = [4]
+                        - dates = [datetime.date(2021, 1, 3)]
+                    )
+                ]
+            )
+
+        Notes:
+            This method does not modify the original `Routine`, it returns a new one without the dropped clusters
         """
 
         new_routines = Routines()
@@ -1380,8 +1720,19 @@ class Routines:
 
     def get_routines(self) -> list[Cluster]:
         """
-        Returns the clusters of the collection
-        :return: list. Returns all the clusters of the routines
+        Returns the clusters of the `Routines`
+
+        Returns
+            `list[Cluster]`. Returns all the clusters of the routines as a list of clusters
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> routines.get_routines()
+            [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0)]), Cluster(centroid=np.array([7, 8, 9, 10]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)])]
         """
 
         return self.__routines
@@ -1389,8 +1740,24 @@ class Routines:
     def to_collection(self) -> list[dict]:
         """
         Returns the collection as a list of dictionaries
-        :return: list[dict]. The collection as a list of dictionaries
+
+        Returns:
+             `list[dict]`. The routines as a list of dictionaries
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> routines.to_collection()
+            [{ 'centroid': np.array([3, 4, 5, 6]),
+              'instances': [{'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0}]},
+              {'centroid': np.array([7, 8, 9, 10]),
+               'instances': [{'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 4}]}
+            ]
         """
+
         collection = []
         for routine in self.__routines:
             collection.append({
@@ -1418,26 +1785,3 @@ class Routines:
         """
 
         return len(self.__routines) == 0
-
-    def __len__(self) -> int:
-        return len(self.__routines)
-
-    def __getitem__(self, index: int) -> 'Cluster':
-        return self.__routines[index]
-
-    def __setitem__(self, index: int, value: 'Cluster') -> None:
-        self.__routines[index] = value
-
-    def __iter__(self):
-        return iter(self.__routines)
-
-    def __contains__(self, item: 'Cluster') -> bool:
-        return item in self.__routines
-
-    def __delitem__(self, index: int) -> None:
-        del self.__routines[index]
-
-    def __add__(self, other: 'Routines') -> 'Routines':
-        new_routines = Routines()
-        new_routines.__routines = self.__routines + other.__routines
-        return new_routines
