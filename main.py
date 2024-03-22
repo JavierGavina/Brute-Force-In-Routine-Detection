@@ -109,7 +109,7 @@ if __name__ == "__main__":
     routine_detector.plot_results(title_fontsize=40, labels_fontsize=35,
                                   xlim=(0, 100), xticks_fontsize=18,
                                   yticks_fontsize=20, figsize=(40, 20),
-                                  linewidth_bars=5)
+                                  linewidth_bars=5, save_dir="figs/routines_detected.png")
 
 
 
