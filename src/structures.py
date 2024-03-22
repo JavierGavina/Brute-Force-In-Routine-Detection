@@ -1474,9 +1474,33 @@ class Routines:
 
         Returns:
             `str`. The string representation of the routines
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> print(routines)
+            Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid = [3, 4, 5, 6],
+                        - instances = [[1, 2, 3, 4]]
+                        - starting_points = [0]
+                        - dates = [datetime.date(2021, 1, 1)]
+                    ),
+                    Cluster(
+                        - centroid = [7, 8, 9, 10],
+                        - instances = [[5, 6, 7, 8]]
+                        - starting_points = [4]
+                        - dates = [datetime.date(2021, 1, 2)]
+                    )
+                ]
+            )
         """
 
-        out_string = "Routines(\n\tlist_routines=[[\n"
+        out_string = "Routines(\n\tlist_routines=[\n"
         for routine in self.__routines:
             out_string += f" {routine},\n"
 
@@ -1489,9 +1513,33 @@ class Routines:
 
         Returns:
             `str`. The string representation of the routines
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> print(routines)
+            Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid = [3, 4, 5, 6],
+                        - instances = [[1, 2, 3, 4]]
+                        - starting_points = [0]
+                        - dates = [datetime.date(2021, 1, 1)]
+                    ),
+                    Cluster(
+                        - centroid = [7, 8, 9, 10],
+                        - instances = [[5, 6, 7, 8]]
+                        - starting_points = [4]
+                        - dates = [datetime.date(2021, 1, 2)]
+                    )
+                ]
+            )
         """
 
-        out_string = "Routines(\n\tlist_routines=[[\n"
+        out_string = "Routines(\n\tlist_routines=[\n"
         for routine in self.__routines:
             out_string += f" {routine},\n"
 

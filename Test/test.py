@@ -365,34 +365,217 @@ class TestCluster(unittest.TestCase):
         self.assertTrue(self.cluster == fourth)
 
     def test_add_instance(self):
+        """
+        Test the add_instance method of the Cluster class
+
+        The method should add a subsequence to the cluster
+
+        The instance of the cluster is formed by the following Sequence:
+            Sequence(
+                list_sequences=[
+                    Subsequence(instance=[1, 2, 3, 4], date=2021-1-1, starting_point=0),
+
+                    Subsequence(instance=[5, 6, 7, 8], date=2021-1-2, starting_point=4)
+                ]
+            )
+
+        The new subsequence to add is:
+                * new subsequence: instances=[9, 10, 11, 12], date=2021-1-3, starting_point=8
+
+        The expected output is:
+                * 3 for the length of the cluster after adding the new subsequence
+        """
+
         new_subsequence = Subsequence(np.array([9, 10, 11, 12]), datetime.date(2021, 1, 3), 8)
         self.cluster.add_instance(new_subsequence)
         self.assertEqual(len(self.cluster.get_sequences()), 3)
 
     def test_get_sequences(self):
-        self.assertEqual(self.cluster.get_sequences(), self.sequence)
+        """
+
+        Test the get_sequences method of the Cluster class
+
+        The method should return the sequences of the cluster
+
+        The instance of the cluster is formed by the following Sequence:
+
+            Sequence(
+                list_sequences=[
+                    Subsequence(instance=[1, 2, 3, 4], date=2021-1-1, starting_point=0),
+
+                    Subsequence(instance=[5, 6, 7, 8], date=2021-1-2, starting_point=4)
+                ]
+            )
+
+        The expected output is:
+                * [np.array([1, 2, 3, 4]), np.array([5, 6, 7, 8])]
+        """
+        subsequences_cluster = self.cluster.get_sequences().get_subsequences()
+        expected_output = [np.array([1, 2, 3, 4]), np.array([5, 6, 7, 8])]
+
+        self.assertTrue(np.array_equal(subsequences_cluster, expected_output))
 
     def test_update_centroid(self):
+        """
+        Test the update_centroid method of the Cluster class
+
+        The method should update the centroid of the cluster
+
+        The instance of the cluster is formed by the following Sequence:
+
+        Cluster(
+            centroid=[10, 10, 10, 10],
+
+            instances= Sequence(
+                list_sequences=[
+                    Subsequence(instance=[1, 2, 3, 4], date=2021-1-1, starting_point=0),
+
+                    Subsequence(instance=[5, 6, 7, 8], date=2021-1-2, starting_point=4)
+                ]))
+
+        The actual centroid is:
+        [10, 10, 10, 10]
+
+        The expected centroid after executing the update_centroid method is:
+        [3.0, 4.0, 5.0, 6.0]
+        """
+
         self.cluster.update_centroid()
         self.assertTrue(np.array_equal(self.cluster.centroid, np.array([3.0, 4.0, 5.0, 6.0])))
 
     def test_get_starting_points(self):
+        """
+        Test the get_starting_points method of the Cluster class
+
+        The method should return the starting points of the subsequences
+
+        The instance of the cluster is formed by the following Sequence:
+
+        Cluster(
+            centroid=[10, 10, 10, 10],
+
+            instances= Sequence(
+                list_sequences=[
+                    Subsequence(instance=[1, 2, 3, 4], date=2021-1-1, starting_point=0),
+
+                    Subsequence(instance=[5, 6, 7, 8], date=2021-1-2, starting_point=4)
+                ]))
+
+        The expected output is:
+            * [0, 4]
+
+        """
+
         self.assertEqual(self.cluster.get_starting_points(), [0, 4])
 
     def test_get_dates(self):
+        """
+        Test the get_dates method of the Cluster class
+
+        The method should return the dates of the subsequences
+
+        The cluster is formed by the following Sequence:
+
+        Cluster(
+            centroid=[10, 10, 10, 10],
+
+            instances= Sequence(
+                list_sequences=[
+                    Subsequence(instance=[1, 2, 3, 4], date=2021-1-1, starting_point=0),
+
+                    Subsequence(instance=[5, 6, 7, 8], date=2021-1-2, starting_point=4)
+                ]))
+
+        The expected output is:
+            * [2021-1-1, 2021-1-2]
+        """
+
         self.assertEqual(self.cluster.get_dates(), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)])
 
     def test_centroid_getter(self):
+        """
+        Test the centroid_getter method of the Cluster class
+
+        The method should return the centroid of the cluster
+
+        The cluster is formed by the following Sequence:
+
+        Cluster(
+            centroid=[10, 10, 10, 10],
+
+            instances= Sequence(
+                list_sequences=[
+                    Subsequence(instance=[1, 2, 3, 4], date=2021-1-1, starting_point=0),
+
+                    Subsequence(instance=[5, 6, 7, 8], date=2021-1-2, starting_point=4)
+                ]))
+
+        The expected output is:
+            * [10, 10, 10, 10]
+        """
+
         self.assertTrue(np.array_equal(self.cluster.centroid, np.array([10, 10, 10, 10])))
 
     def test_centroid_setter(self):
+        """
+        Test the centroid_setter method of the Cluster class
+
+        The method should set the centroid of the cluster
+
+        The cluster is formed by the following Sequence:
+
+        Cluster(
+            centroid=[10, 10, 10, 10],
+
+            instances= Sequence(
+                list_sequences=[
+                    Subsequence(instance=[1, 2, 3, 4], date=2021-1-1, starting_point=0),
+
+                    Subsequence(instance=[5, 6, 7, 8], date=2021-1-2, starting_point=4)
+                ]))
+
+        The new centroid is:
+        [1, 2, 3, 4]
+
+        The expected centroid set is:
+        [1, 2, 3, 4]
+        """
+
         new_centroid = np.array([1, 2, 3, 4])
         self.cluster.centroid = new_centroid
         self.assertTrue(np.array_equal(self.cluster.centroid, new_centroid))
 
 
 class TestRoutines(unittest.TestCase):
+    """
+    Test the Routines class
+
+    The Routines class is a class that represents a set of clusters. It has the following methods:
+
+        * __init__: initializes the Routines object
+        * add_routine: adds a cluster to the routines
+        * drop_indexes: drops the clusters with the indexes in the list
+        * get_routines: returns the clusters
+        * to_collection: returns the clusters in a collection
+
+    """
+
     def setUp(self):
+        """
+        Set up the Routines object and the clusters for the tests
+
+        The Routine is formed by the following cluster:
+
+        Routines(
+            list_routines=[
+                Cluster(
+                    - centroid = [3, 4, 5, 6],
+                    - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
+                    - starting_points = [0, 4]
+                    - dates = [2021-1-1, 2021-1-2]
+                )])
+        """
+
         self.sequence = Sequence()
         self.subsequence1 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
         self.subsequence2 = Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)
@@ -402,19 +585,118 @@ class TestRoutines(unittest.TestCase):
         self.routines = Routines(self.cluster)
 
     def test_add_routine(self):
+        """
+        Test the add_routine method of the Routines class
+
+        The method should add a cluster to the routines
+
+        The cluster to add is:
+
+        Cluster(
+            - centroid = [7, 8, 9, 10],
+            - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
+            - starting_points = [0, 4]
+            - dates = [2021-1-1, 2021-1-2]
+        )
+
+        The expected length of the routines after adding the cluster is:
+            * 2
+        """
+
         new_cluster = Cluster(np.array([7, 8, 9, 10]), self.sequence)
         self.routines.add_routine(new_cluster)
         self.assertEqual(len(self.routines), 2)
 
     def test_drop_indexes(self):
+        """
+        Test the drop_indexes method of the Routines class
+
+        The method should return a new routine instance without the clusters with the indexes in the list
+
+        The routines are:
+
+        Routines(
+            list_routines=[
+                Cluster(
+                    - centroid = [7, 8, 9, 10],
+                    - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
+                    - starting_points = [0, 4]
+                    - dates = [2021-1-1, 2021-1-2]
+                ),
+                Cluster(
+                    - centroid = [7, 8, 9, 10],
+                    - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
+                    - starting_points = [0, 4]
+                    - dates = [2021-1-1, 2021-1-2]
+                )])
+
+        The actual length of the routines is:
+                * 2
+
+        The method is expected to drop the first cluster (index 0)
+
+        The expected length of the routines after dropping the cluster is:
+            * 1
+        """
+
         self.routines.add_routine(self.cluster)
         self.routines = self.routines.drop_indexes([0])
         self.assertEqual(len(self.routines), 1)
 
     def test_get_routines(self):
+        """
+        Test the get_routines method of the Routines class
+
+        The method should return a list of clusters
+
+        The routines are:
+
+        Routines(
+            list_routines=[
+                Cluster(
+                    - centroid = [3, 4, 5, 6],
+                    - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
+                    - starting_points = [0, 4]
+                    - dates = [2021-1-1, 2021-1-2]
+                )])
+
+        The expected output is:
+
+        [Cluster(
+            - centroid = [3, 4, 5, 6],
+            - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
+            - starting_points = [0, 4]
+            - dates = [2021-1-1, 2021-1-2]
+        )]
+        """
+
         self.assertEqual(self.routines.get_routines(), [self.cluster])
 
     def test_to_collection(self):
+        """
+        Test the to_collection method of the Routines class
+
+        The method should return the clusters in a collection
+
+        The routines are:
+
+        Routines(
+            list_routines=[
+                Cluster(
+                    - centroid = [3, 4, 5, 6],
+                    - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
+                    - starting_points = [0, 4]
+                    - dates = [2021-1-1, 2021-1-2]
+                )])
+
+        The expected output is:
+
+        >>> [{'centroid': np.array([3, 4, 5, 6]),
+        >>> 'instances': [
+        >>>  ...  {'instance': [1, 2, 3, 4], 'date': datetime.date(2021, 1, 1), 'starting_point': 0},
+        >>>  ...  {'instance': [5, 6, 7, 8], 'date': datetime.date(2021, 1, 2), 'starting_point': 4}
+        >>> ] }]
+        """
         collection = self.routines.to_collection()
         expected_collection = [{'centroid': np.array([3, 4, 5, 6]), 'instances': self.sequence.get_subsequences()}]
         self.assertEqual(np.array_equal(collection[0]["centroid"], expected_collection[0]["centroid"]), True)
