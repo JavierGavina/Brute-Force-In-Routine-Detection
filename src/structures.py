@@ -49,6 +49,8 @@ import numpy as np
 import datetime
 from typing import Union, Optional
 
+import copy
+
 
 class Subsequence:
     """
@@ -408,7 +410,9 @@ class Sequence:
             if not isinstance(subsequence, Subsequence):
                 raise TypeError("subsequence has to be an instance of Subsequence")
 
-            self.__list_sequences: list[Subsequence] = [subsequence]
+            # Make a deep copy of the subsequence
+            new_subsequence = copy.deepcopy(subsequence)
+            self.__list_sequences: list[Subsequence] = [new_subsequence]
 
         # If the subsequence is None, initialize an empty list
         else:
@@ -656,6 +660,36 @@ class Sequence:
         new_sequence.__list_sequences = self.__list_sequences + other.__list_sequences
         return new_sequence
 
+    def __eq__(self, other: 'Sequence') -> bool:
+        """
+        Check if the sequence is equal to another sequence
+
+        Parameters:
+            * other: `Sequence`. The sequence to compare
+
+        Returns:
+            `bool`. True if the sequences are equal, False otherwise
+
+        Raises:
+            TypeError: if the parameter is not of the correct type
+
+        Examples:
+            >>> sequence1 = Sequence()
+            >>> sequence1.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence2 = Sequence()
+            >>> sequence2.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence1 == sequence2
+            True
+        """
+
+        # Check if the parameter is an instance of Sequence
+        if not isinstance(other, Sequence):
+            raise TypeError("other must be an instance of Sequence")
+
+        # Check if the subsequences are equal
+        return np.array_equal(self.get_subsequences(), other.get_subsequences())
+
+
     def _alreadyExists(self, subsequence: 'Subsequence') -> bool:
         """
         Check if the subsequence already exists in the sequence
@@ -672,6 +706,7 @@ class Sequence:
             >>> sequence._alreadyExists(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
             True
         """
+
         self_collection = self.to_collection()
         new_self_collection = []
 
@@ -914,8 +949,11 @@ class Cluster:
         if not isinstance(instances, Sequence):
             raise TypeError("instances must be an instance of Sequence")
 
+        # Make a deep copy of the instances to avoid modifying the original sequence
+        new_instances = copy.deepcopy(instances)
+
         self.__centroid: np.ndarray = centroid
-        self.__instances: Sequence = instances
+        self.__instances: Sequence = new_instances
 
     def __str__(self):
         """
@@ -1178,6 +1216,61 @@ class Cluster:
         new_instances = self.__instances + other.get_sequences()
         new_centroid = np.mean(new_instances.get_subsequences(), axis=0)
         return Cluster(centroid=new_centroid, instances=new_instances)
+
+    def __eq__(self, other: 'Cluster') -> bool:
+        """
+        Check if the cluster is equal to another cluster with the operator ==
+
+        Parameters:
+            * other: `Cluster`. The cluster to check
+
+        Returns:
+            `bool`. `True` if the clusters are equal, `False` otherwise
+
+        Raises:
+            TypeError: if the parameter is not an instance of `Cluster`
+
+        Examples:
+            >>> sequence1 = Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence2 = Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 1))
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), sequence1)
+            >>> cluster2 = Cluster(np.array([3, 4, 5, 6]), sequence2)
+            >>> cluster1 == cluster2
+            False
+
+            >>> sequence3 = Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence4 = Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 1))
+            >>> cluster3 = Cluster(np.array([3, 4, 5, 6]), sequence3)
+            >>> cluster4 = Cluster(np.array([3, 4, 5, 6]), sequence4)
+            >>> cluster3 == cluster4
+            True
+        """
+
+        # Check if the other is a Cluster instance
+        if not isinstance(other, Cluster):
+            raise TypeError("other must be an instance of Cluster")
+
+        # Check if the centroid and the instances are equal
+        if not np.array_equal(self.__centroid, other.centroid):
+            return False
+
+        # Check if the number of instances is equal
+        if len(self.__instances) != len(other.get_sequences()):
+            return False
+
+        # Check if the instances are equal
+        if not np.array_equal(self.__instances.get_subsequences(), other.get_sequences().get_subsequences()):
+            return False
+
+        # Check if the dates are equal
+        if not np.array_equal(self.__instances.get_dates(), other.get_sequences().get_dates()):
+            return False
+
+        # Check if the starting points are equal
+        if not np.array_equal(self.__instances.get_starting_points(), other.get_sequences().get_starting_points()):
+            return False
+
+        return True
 
     def add_instance(self, new_instance: 'Subsequence') -> None:
         """
@@ -1634,6 +1727,55 @@ class Routines:
         new_routines = Routines()
         new_routines.__routines = self.__routines + other.__routines
         return new_routines
+
+    def __eq__(self, other: 'Routines') -> bool:
+        """
+        Check if the self routine is equal to another routine with the operator ==
+
+        Parameters:
+            * other: `Routines`. The routine to check
+
+        Returns:
+            `bool`. `True` if the routines are equal, `False` otherwise
+
+        Raises:
+            TypeError: if the parameter is not an instance of `Routines`
+
+        Examples:
+            >>> routines1 = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines1.add_routine(cluster1)
+            >>> routines1.add_routine(cluster2)
+            >>> routines2 = Routines()
+            >>> cluster3 = Cluster(np.array([11, 12, 13, 14]), Sequence(Subsequence(np.array([9, 10, 11, 12]), datetime.date(2021, 1, 3), 4))
+            >>> routines2.add_routine(cluster3)
+            >>> routines1 == routines2
+            False
+
+            >>> routines3 = Routines()
+            >>> cluster4 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster5 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines3.add_routine(cluster4)
+            >>> routines3.add_routine(cluster5)
+            >>> routines1 == routines3
+            True
+        """
+
+        # Check if the other is a Routines instance
+        if not isinstance(other, Routines):
+            raise TypeError("other has to be an instance of Routines")
+
+        # Check if the number of clusters is equal
+        if len(self.__routines) != len(other.__routines):
+            return False
+
+        # Check if the clusters are equal
+        for idx, routine in enumerate(self.__routines):
+            if routine != other.__routines[idx]:
+                return False
+
+        return True
 
     def add_routine(self, new_routine: 'Cluster') -> None:
         """

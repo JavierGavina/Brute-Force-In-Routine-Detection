@@ -35,16 +35,19 @@ Public methods:
             - save_dir: `Optional[str]`. Directory to save the plot.
 
 """
+import sys
 import datetime
 
 import numpy as np
 import pandas as pd
-from structures import Subsequence, Sequence, Cluster, Routines
 
 from typing import Union, Optional
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import matplotlib.patches as mpatches
+
+sys.path.append("../")
+
+from src.structures import Subsequence, Sequence, Cluster, Routines
 
 
 class DRFL:
@@ -232,7 +235,7 @@ class DRFL:
         self.__sequence.add_sequence(subsequence)  # Add the subsequence to the sequences
 
     @staticmethod
-    def __IsMatch(S1: 'Subsequence', S2: Union[np.ndarray, Subsequence], R: int | float) -> bool:
+    def __IsMatch(S1: Subsequence, S2: Union[np.ndarray, Subsequence], R: int | float) -> bool:
         """
         Check if two subsequences match by checking if the distance between them is lower than the threshold distance parameter R.
 
@@ -708,7 +711,7 @@ class DRFL:
         maximum = max(ts)
 
         # if xlim is not provided, set the limits of the x-axis to the range of the time series
-        xlim = xlim or (0, len(ts)-1)
+        xlim = xlim or (0, len(ts) - 1)
 
         # Get the starting points of each routine
         start_points = [cluster.get_starting_points() for cluster in self.__routines]
@@ -738,7 +741,7 @@ class DRFL:
             plt.bar(x=np.arange(0, len(ts)), height=ts, color=colors, edgecolor="black", linewidth=linewidth_bars)
 
             # Set the ticks on the x-axis
-            plt.xticks(ticks=np.arange(xlim[0], xlim[1]+1), labels=np.arange(xlim[0], xlim[1]+1),
+            plt.xticks(ticks=np.arange(xlim[0], xlim[1] + 1), labels=np.arange(xlim[0], xlim[1] + 1),
                        fontsize=xticks_fontsize or 20)
             plt.yticks(fontsize=yticks_fontsize or 20)
 
