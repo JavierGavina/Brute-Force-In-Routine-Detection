@@ -26,9 +26,20 @@ Where:
 --epsilon: minimum overlap percentage
 ```
 
+You can modify in main.py the method plot_results to visualize the results of the algorithm. 
+
+```python
+    routine_detector.plot_results(title_fontsize=40, labels_fontsize=35,
+                                  xlim=(0, 100), xticks_fontsize=18,
+                                  yticks_fontsize=20, figsize=(40, 20),
+                                  linewidth_bars=5, save_dir="figs/routines_detected.png")
+```
+
+![Routines Detected](figs/routines_detected.png)
 
 The synthetic activity dataset and the JSON with the correspondencies can be obtained on this website implemented by us [Synthetic Activity Dataset](https://javiergavina.github.io/Synthetic-Activity-Dataset/index.html)
 
+![Synthetic Activity Dataset](figs/labelmap-downloaded.png)
 
 Run tests
 
