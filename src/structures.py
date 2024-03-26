@@ -1217,7 +1217,7 @@ class Cluster:
         new_centroid = np.mean(new_instances.get_subsequences(), axis=0)
         return Cluster(centroid=new_centroid, instances=new_instances)
 
-    def __eq__(self, other: 'Cluster') -> bool:
+    def __eq__(self, other: Union['Cluster', None]) -> bool:
         """
         Check if the cluster is equal to another cluster with the operator ==
 
@@ -1248,6 +1248,9 @@ class Cluster:
 
         # Check if the other is a Cluster instance
         if not isinstance(other, Cluster):
+            if other is None:
+                return False
+
             raise TypeError("other must be an instance of Cluster")
 
         # Check if the centroid and the instances are equal
@@ -1413,6 +1416,7 @@ class Routines:
         * add_routine: adds a cluster to the collection
         * drop_indexes: drops the clusters with the specified indexes
         * get_routines: returns the clusters of the collection
+        * get_centroids: returns the centroids of the clusters
         * to_collection: returns the collection as a list of dictionaries
 
     Examples:
@@ -1926,6 +1930,25 @@ class Routines:
         """
 
         return self.__routines
+
+    def get_centroids(self) -> list[np.ndarray]:
+        """
+        Returns the centroids of the clusters
+
+        Returns:
+             `list[np.ndarray]`. The centroids of the clusters
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> routines.get_centroids()
+            [np.array([3, 4, 5, 6]), np.array([7, 8, 9, 10])]
+        """
+
+        return [cluster.centroid for cluster in self.__routines]
 
     def to_collection(self) -> list[dict]:
         """

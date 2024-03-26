@@ -37,6 +37,8 @@ Public methods:
 """
 import sys
 import datetime
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
@@ -44,6 +46,9 @@ import pandas as pd
 from typing import Union, Optional
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import warnings
+
+from itertools import product
 
 sys.path.append("../")
 
@@ -63,8 +68,6 @@ class DRFL:
             * Filter the clusters based on their frequency.
             * Test and handle overlapping clusters.
 
-    The algorithm is implemented in the class DRFL, which has the following methods and parameters:
-
     Parameters:
         * m: Length of each secuence
         * R: Distance threshold
@@ -72,22 +75,16 @@ class DRFL:
         * G: Magnitude threshold
         * epsilon: Overlap Parameter
 
-    Public methods:
+    Methods
+    _______
         * fit: Fit the time series to the algorithm.
-             Parameters:
-                - time_series: Temporal data.
         * show_results: Show the results of the algorithm.
         * get_results: Returns the object Routines, with the discovered routines.
         * plot_results: Plot the results of the algorithm.
-            Parameters:
-                  title_fontsize: `Optional[int]`. Size of the title plot.
-                  ticks_fontsize: `Optional[int]`. Size of the ticks.
-                  labels_fontsize: `Optional[int]`. Size of the labels.
-                  figsize: `Optional[tuple[int, int]]`. Size of the figure.
-                  xlim: `Optional[tuple[int, int]]`. Limit of the x axis with starting points.
-                  save_dir: `Optional[str]`. Directory to save the plot.
+        * estimate_distance: Estimate the customized distance from the obtained centroids and the target centroids.
 
     Examples:
+    --------
 
         >>> from DRFL import DRFL
         >>> import pandas as pd
@@ -98,7 +95,7 @@ class DRFL:
         >>> drfl.fit(time_series)
         >>> drfl.show_results()
         >>> drfl.plot_results()
-        ```
+
     """
 
     def __init__(self, m: int, R: Union[float, int], C: int, G: Union[float, int], epsilon: float):
@@ -124,6 +121,8 @@ class DRFL:
         self.epsilon: float = epsilon
         self.__routines: Routines = Routines()
         self.__sequence: Sequence = Sequence()
+
+        self.__already_fitted: bool = False
         self.time_series: pd.Series = None
 
     @staticmethod
@@ -131,9 +130,23 @@ class DRFL:
         """
         Check the type of the time series.
 
-        :param time_series: pd.Series. Temporal data
-        :raises TypeError: If the time series is not a pandas Series.
+        Parameters:
+            * time_series: `pd.Series`. Temporal data.
+
+        Raises:
+            TypeError: If the time series is not a `pandas Series` with `DatetimeIndex` at the index.
+
+        Notes:
+            This method is private and cannot be accessed from outside the class.
+
+        Examples:
+            >>> from DRFL import DRFL
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 2, 3, 4, 5])
+            >>> DRFL.__check_type_time_series(time_series)
+            TypeError: time_series must be a pandas Series with a DatetimeIndex
         """
+
         if not isinstance(time_series, pd.Series):
             raise TypeError("time_series must be a pandas Series")
 
@@ -154,6 +167,9 @@ class DRFL:
         Raises:
             TypeError: If the distances are not a list or a numpy array.
 
+        Notes:
+            This method is private and cannot be accessed from outside the class.
+
         Examples:
             >>> from DRFL import DRFL
             >>> distances = [1, 2, 3, 4, 5]
@@ -166,6 +182,175 @@ class DRFL:
             raise TypeError("distances must be a list or a numpy array")
 
         return int(np.argmin(distances))
+
+    @staticmethod
+    def __IsMatch(S1: Subsequence, S2: Union[np.ndarray, Subsequence], R: int | float) -> bool:
+        """
+        Check if two subsequences match by checking if the distance between them is lower than the threshold distance parameter R.
+
+        Parameters:
+            * S1: `Subsequence`. The first subsequence.
+            * S2: `np.array` or `Subsequence`. The second subsequence.
+            * R: `int` or `float`. The threshold distance parameter.
+
+        Returns:
+            `bool`. `True` if the distance between the subsequences is lower than the threshold distance parameter R, `False` otherwise.
+
+        Raises:
+            TypeError: If S1 is not an instance of `Subsequence` or S2 is not an instance of `Subsequence` or `np.ndarray`.
+
+        Notes:
+            This method is private and cannot be accessed from outside the class.
+
+        Examples:
+            >>> from DRFL import DRFL
+            >>> import numpy as np
+            >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
+            >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
+            >>> drfl.__IsMatch(S1, S2, 2)
+            True
+
+            >>> S3 = Subsequence(instance=np.array([1, 2, 6]), date=datetime.date(2024, 1, 1), starting_point=0)
+            >>> drfl.__IsMatch(S1, S3, 2)
+            False
+        """
+
+        # Check if S1 is an instance of Subsequence
+        if not isinstance(S1, Subsequence):
+            raise TypeError("S1 must be instance of Subsequence")
+
+        # Check if S2 is an instance of Subsequence or np.ndarray
+        if isinstance(S2, Subsequence) or isinstance(S2, np.ndarray):
+            return S1.Distance(S2) <= R
+
+        raise TypeError("S2 must be instance of Subsequence or np.ndarray")
+
+    @staticmethod
+    def __IsOverlap(S_i: Subsequence, S_j: Subsequence):
+        """
+        Check if two subsequences overlap by applying the following inequality from the paper:
+
+        (i + p) > j or (j + q) > i
+
+        Where:
+            * i: Starting point of the first subsequence.
+            * j: Starting point of the second subsequence.
+            * p: Length of the first subsequence.
+            * q: Length of the second subsequence.
+
+        Parameters:
+            * S_i: `Subsequence`. The first subsequence with starting point i.
+            * S_j: `Subsequence`. The second subsequence with starting point j.
+
+        Notes:
+            This method is private and cannot be accessed from outside the class.
+
+        Returns:
+             `True` if they overlap, `False` otherwise.
+
+        Raises:
+            TypeError: If S_i or S_j are not instances of Subsequence.
+
+        Examples:
+            >>> from DRFL import DRFL
+            >>> import numpy as np
+            >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
+            >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
+            >>> drfl.__IsOverlap(S1, S2)
+            True
+
+            >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
+            >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=4)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
+            >>> drfl.__IsOverlap(S1, S2)
+            False
+        """
+
+        # Check if S_i and S_j are instances of Subsequence
+        if not isinstance(S_i, Subsequence) or not isinstance(S_j, Subsequence):
+            raise TypeError("S_i and S_j must be instances of Subsequence")
+
+        start_i, p = S_i.get_starting_point(), len(S_i.get_instance())
+        start_j, q = S_j.get_starting_point(), len(S_j.get_instance())
+        return not ((start_i + p <= start_j) or (start_j + q <= start_i))
+
+    @staticmethod
+    def __inverse_gaussian_distance(N_target: int, N_estimated: int, sigma: float) -> float:
+        """
+        Compute the inverse gaussian distance between the target and estimated number of instances.
+
+        It applies the following formula:
+
+        1 - exp(-((N_target - N_estimated) ** 2) / sigma)
+
+        This distance is ranged from 0 to 1, where 0 means that the target and estimated number of instances are equal and 1 means that they are different.
+        Its purpose is to penalize the difference between the target and estimated number of instances in a smooth way.
+
+        Parameters:
+            * N_target: `int`. Target number of centroids.
+            * N_estimated: `int`. Estimated number of centroids.
+            * sigma: `float`. Standard deviation parameter for the inverse gaussian distance calculation. Lower values of sigma penalizes more the difference between the target and estimated number of centroids.
+
+        Returns:
+            `float`. The inverse gaussian distance between the target and estimated number of instances.
+
+        Examples:
+            >>> from DRFL import DRFL
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
+            >>> drfl.__inverse_gaussian_distance(N_target=3, N_estimated=3, sigma=2)
+            0
+        """
+
+        return 1 - np.exp(-((N_target - N_estimated) ** 2) / sigma)
+
+    @staticmethod
+    def __matrix_of_distances(target_centroids: list[list], estimated_centroids: list[np.ndarray]) -> np.ndarray:
+        """
+        Compute the matrix of distances between the target and estimated centroids.
+        The distance between the target and estimated centroids is the maximum absolute difference between them.
+
+        Parameters:
+            * target_centroids: `list[list]`. Target centroids.
+            * estimated_centroids: `list[np.ndarray]`. Estimated centroids.
+
+        Returns:
+            `np.array`. Matrix of distances between the target and estimated centroids.
+
+        Examples:
+            >>> target_centroids = [[1, 2, 3], [2, 3, 4], [3, 4, 5]]
+            >>> estimated_centroids = [np.array([1, 2, 3]), np.array([2, 3, 4]), np.array([3, 4, 5])]
+            >>> drfl.__matrix_of_distances(target_centroids, estimated_centroids)
+            array([[0., 1., 2.],
+                   [1., 0., 1.],
+                   [2., 1., 0.]])
+        """
+
+        # Initialize the matrix of distances
+        matrix = np.zeros((len(target_centroids), len(estimated_centroids)))
+
+        # Compute the matrix of distances
+        for i, target in enumerate(target_centroids):
+            for j, estimated in enumerate(estimated_centroids):
+                # Compute the distance between the target and estimated centroids
+                matrix[i, j] = np.max(np.abs(np.array(target) - estimated))
+
+        return matrix
+
+    @staticmethod
+    def __closest_centroids_distances(matrix_of_distances: np.ndarray) -> np.ndarray:
+        """
+        Compute the closest distances between the target and estimated centroids.
+
+        Parameters:
+            * matrix_of_distances: `np.ndarray`. Matrix of distances between the target and estimated centroids.
+
+        Returns:
+            `np.ndarray`. Closest distances between the target and estimated centroids.
+        """
+
+        return np.min(matrix_of_distances, axis=1)
 
     def __extract_subsequence(self, time_series: pd.Series, t: int) -> None:
         """
@@ -233,49 +418,6 @@ class DRFL:
                                   starting_point=t)  # Get the subsequence from the time window
 
         self.__sequence.add_sequence(subsequence)  # Add the subsequence to the sequences
-
-    @staticmethod
-    def __IsMatch(S1: Subsequence, S2: Union[np.ndarray, Subsequence], R: int | float) -> bool:
-        """
-        Check if two subsequences match by checking if the distance between them is lower than the threshold distance parameter R.
-
-        Parameters:
-            * S1: `Subsequence`. The first subsequence.
-            * S2: `np.array` or `Subsequence`. The second subsequence.
-            * R: `int` or `float`. The threshold distance parameter.
-
-        Returns:
-            `bool`. `True` if the distance between the subsequences is lower than the threshold distance parameter R, `False` otherwise.
-
-        Raises:
-            TypeError: If S1 is not an instance of `Subsequence` or S2 is not an instance of `Subsequence` or `np.ndarray`.
-
-        Notes:
-            This method is private and cannot be accessed from outside the class.
-
-        Examples:
-            >>> from DRFL import DRFL
-            >>> import numpy as np
-            >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
-            >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
-            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
-            >>> drfl.__IsMatch(S1, S2, 2)
-            True
-
-            >>> S3 = Subsequence(instance=np.array([1, 2, 6]), date=datetime.date(2024, 1, 1), starting_point=0)
-            >>> drfl.__IsMatch(S1, S3, 2)
-            False
-        """
-
-        # Check if S1 is an instance of Subsequence
-        if not isinstance(S1, Subsequence):
-            raise TypeError("S1 must be instance of Subsequence")
-
-        # Check if S2 is an instance of Subsequence or np.ndarray
-        if isinstance(S2, Subsequence) or isinstance(S2, np.ndarray):
-            return S1.Distance(S2) <= R
-
-        raise TypeError("S2 must be instance of Subsequence or np.ndarray")
 
     def __NotTrivialMatch(self, subsequence: Subsequence, cluster: Cluster, start: int, R: int | float) -> bool:
         """
@@ -424,56 +566,6 @@ class DRFL:
         filtered_routines = routines.drop_indexes(to_drop)
 
         return filtered_routines
-
-    @staticmethod
-    def __IsOverlap(S_i: Subsequence, S_j: Subsequence):
-        """
-        Check if two subsequences overlap by applying the following inequality from the paper:
-
-        (i + p) > j or (j + q) > i
-
-        Where:
-            * i: Starting point of the first subsequence.
-            * j: Starting point of the second subsequence.
-            * p: Length of the first subsequence.
-            * q: Length of the second subsequence.
-
-        Parameters:
-            * S_i: `Subsequence`. The first subsequence with starting point i.
-            * S_j: `Subsequence`. The second subsequence with starting point j.
-
-        Notes:
-            This method is private and cannot be accessed from outside the class.
-
-        Returns:
-             `True` if they overlap, `False` otherwise.
-
-        Raises:
-            TypeError: If S_i or S_j are not instances of Subsequence.
-
-        Examples:
-            >>> from DRFL import DRFL
-            >>> import numpy as np
-            >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
-            >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
-            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
-            >>> drfl.__IsOverlap(S1, S2)
-            True
-
-            >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
-            >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=4)
-            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
-            >>> drfl.__IsOverlap(S1, S2)
-            False
-        """
-
-        # Check if S_i and S_j are instances of Subsequence
-        if not isinstance(S_i, Subsequence) or not isinstance(S_j, Subsequence):
-            raise TypeError("S_i and S_j must be instances of Subsequence")
-
-        start_i, p = S_i.get_starting_point(), len(S_i.get_instance())
-        start_j, q = S_j.get_starting_point(), len(S_j.get_instance())
-        return not ((start_i + p <= start_j) or (start_j + q <= start_i))
 
     def __OLTest(self, cluster1: Cluster, cluster2: Cluster, epsilon: float) -> tuple[bool, bool]:
         """
@@ -626,6 +718,10 @@ class DRFL:
 
         self.__check_type_time_series(time_series)
         self.time_series = time_series
+
+        # Set the already_fitted attribute to True
+        self.__already_fitted = True
+
         for i in range(len(self.time_series) - self.m + 1):
             self.__extract_subsequence(self.time_series, i)
 
@@ -641,6 +737,65 @@ class DRFL:
             to_drop = [k for k in range(len(self.__routines)) if k not in keep_indices]
             self.__routines = self.__routines.drop_indexes(to_drop)
 
+        if len(self.__routines) == 0:
+            warnings.warn("No routines have been discovered", UserWarning)
+
+    def estimate_distance(self, target_centroids: list[list], alpha: float, sigma: float) -> float:
+        """
+        Estimate the distance between the target centroids and the estimated centroids.
+        The distance is a combination of the penalization
+        of detecting a distinct number of routines and the normalized distance between the target and estimated centroids.
+        Applies the following formula:
+
+        alpha * penalization + (1 - alpha) * normalized_distance
+
+        Where penalization is the inverse gaussian distance between the target and estimated number of instances,
+        and normalized_distance is the sum of the closest distances between the target and estimated centroids
+        divided by the total sum of the distances.
+
+        The result is a distance value ranged from 0 to 1,
+        where 0 means that the target and estimated centroids are equal and 1 means that they are different.
+
+        Parameters:
+            * target_centroids: `list[list]`. Target centroids.
+            * alpha: `float`. Weight parameter to balance the penalization and normalized distance.
+            * sigma: `float`. Standard deviation parameter for the inverse gaussian distance calculation.
+
+        Returns:
+            `float`. The distance between the target and estimated centroids ranged from 0 to 1.
+
+
+
+        """
+
+        if self.__routines.is_empty():
+            # warnings.warn("No routines have been discovered", UserWarning)
+            return np.nan
+
+        # Estimate the penalization of detecting a distinct number of routines
+        N_target, N_estimated = len(target_centroids), len(self.__routines)
+
+        # estimate the penalization of detecting a distinct number of routines
+        penalization = self.__inverse_gaussian_distance(N_target, N_estimated, sigma)
+
+        # calculate the matrix of distances between the target centroids and the estimated centroids
+        matrix_of_distances = self.__matrix_of_distances(target_centroids, self.__routines.get_centroids())
+
+        # calculate the closest distances between the target centroids and the estimated centroids
+        closest_distances = self.__closest_centroids_distances(matrix_of_distances)
+
+        # Normalization of the distances
+        total_sum_matrix = np.sum(matrix_of_distances)
+        total_sum_closest = np.sum(closest_distances)
+
+        # Avoid division by zero
+        if total_sum_matrix == 0:
+            normalized_distance = 0
+        else:
+            normalized_distance = total_sum_closest / total_sum_matrix
+
+        return alpha * penalization + (1 - alpha) * normalized_distance
+
     def show_results(self) -> None:
         """
         Displays the discovered routines after fitting the model to the time series data.
@@ -650,6 +805,9 @@ class DRFL:
         Note:
             This method should be called after the `fit` method to ensure that routines have been discovered and are ready to be displayed.
         """
+
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
 
         print("Routines detected: ", len(self.__routines))
         print("_" * 50)
@@ -672,6 +830,10 @@ class DRFL:
         Note:
             The `Routines` object provides methods and properties to further explore and manipulate the discovered routines.
         """
+
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
         return self.__routines
 
     def plot_results(self, title_fontsize: Optional[int] = None,
@@ -696,6 +858,10 @@ class DRFL:
         Notes:
            This method has to be executed after the fit method to ensure that routines have been discovered and are ready to be displayed.
         """
+
+        # Check if the model has been fitted
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
 
         # Generate a color map for the routines
         base_colors = cm.rainbow(np.linspace(0, 1, len(self.__routines)))
@@ -761,3 +927,243 @@ class DRFL:
 
         # Display the plot
         plt.show()
+
+
+class ParallelSearchDRFL:
+    """
+    Class to perform a parallel search of the best parameters for the DRFL algorithm using multithreading.
+
+    This class allows the user to search for the best parameters for the DRFL algorithm using a grid search approach.
+
+    Parameters:
+        * n_jobs: `int`. The number of parallel jobs to run.
+        * alpha: `int | float`. Rate of penalization.
+        * sigma: `int | float`. Sigma parameter for the variance in the inverse Gaussian distance.
+        * param_grid: `dict`. Dictionary with parameters names (`m`, `R`, `C`, `G`, `epsilon`) as keys and lists of their values to try, representing the parameters from the DRFL algorithm.
+
+    Attributes:
+    -------
+        * n_jobs: `int`. The number of parallel jobs to run.
+        * alpha: `int | float`. Rate of penalization.
+        * sigma: `int | float`. Sigma parameter for the variance in the inverse Gaussian distance.
+        * param_grid: `dict`. Dictionary with parameters names (`m`, `R`, `C`, `G`, `epsilon`) as keys and lists of their values to try, representing the parameters from the DRFL algorithm.
+
+    Methods:
+    -------
+        * fit(time_series: pd.Series, target_centroids: list[list]): Fit the DRFL algorithm to the time series data using multiple sets of parameters in parallel.
+        * best_params(): Get the best parameters found during the search.
+        * cv_results(): Get the results of the search.
+
+
+    Examples:
+    --------
+        >>> from DRFL import ParallelSearchDRFL
+        >>> import pandas as pd
+        >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+        >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+        >>> param_grid = {
+        ...     "m": [3],
+        ...     "R": [1, 2, 3, 4, 5, 6],
+        ...     "C": [1, 2, 3, 4, 5, 6],
+        ...     "G": [1, 2, 3, 4, 5, 6],
+        ...     "epsilon": [0.5, 1],
+        ... }
+        >>> search = ParallelSearchDRFL(n_jobs=2, alpha=0.5, sigma=3, param_grid=param_grid)
+        >>> search.fit(time_series)
+        >>> print(search.best_params())
+        >>> {'m': 3, 'R': 1, 'C': 3, 'G': 4, 'epsilon': 1}
+    """
+
+    def __init__(self, n_jobs: int, alpha: Union[int, float], sigma: Union[int, float], param_grid: dict):
+        """
+        Initialize the ParallelDRFL object with a parameter grid for the DRFL algorithm and the number of jobs for parallel processing.
+
+        Parameters:
+            * n_jobs: `int`. The number of parallel jobs to run.
+            * alpha: `int | float`. Rate of penalization.
+            * sigma: `int | float`. Sigma parameter for the variance in the inverse Gaussian distance.
+            * param_grid: `dict`. Dictionary with parameters names (`m`, `R`, `C`, `G`, `epsilon`) as keys and lists of their values to try, representing the parameters from the DRFL algorithm.
+
+        Raises:
+            TypeError: If the parameter grid is not a dictionary.
+            ValueError: If the parameter grid is empty or if some parameter is not valid or has an invalid value.
+        """
+        # Check the validity of the parameters
+        self.__check_validity_params(alpha, sigma, param_grid)
+
+        # Set the attributes
+        self.__n_jobs: int = n_jobs
+        self.__alpha: Union[int, float] = alpha
+        self.__sigma: Union[int, float] = sigma
+        self.__param_grid: dict = param_grid
+
+        # Initialize the results attribute and the fitted attribute
+        self.__results: list[dict] = []
+        self.__fitted: bool = False
+
+    @staticmethod
+    def __check_validity_params(alpha: Union[int, float], sigma: Union[int, float], param_grid: dict):
+        """
+        Check the validity of the parameter grid.
+
+        Parameters:
+            * param_grid: `dict`. The parameter grid to check.
+
+        Raises:
+            TypeError: If the parameter grid is not a dictionary.
+            ValueError: If some parameter is not valid or has an invalid value.
+        """
+
+        if alpha < 0 or alpha > 1:
+            raise ValueError("alpha must be between 0 and 1")
+
+        if sigma < 1:
+            raise ValueError("sigma must be greater or equal than 1")
+
+        if not isinstance(param_grid, dict):
+            raise TypeError("param_grid must be a dictionary")
+
+        if not param_grid:
+            raise ValueError("param_grid cannot be empty")
+
+        valid_params = ['m', 'R', 'C', 'G', 'epsilon']
+        for key in param_grid.keys():
+            if key not in valid_params:
+                raise ValueError(f"Invalid parameter: {key}. Valid parameters are: {valid_params}")
+
+            if key == "m" and (param_grid[key] < 2 or not isinstance(param_grid[key], int)):
+                raise ValueError("m must be an integer greater or equal than 2")
+
+            if key == "C":
+                for value in param_grid[key]:
+                    if value < 1 or not isinstance(value, int):
+                        raise ValueError("C must be greater or equal than 1")
+
+            if key == "epsilon":
+                for value in param_grid[key]:
+                    if value < 0 or value > 1:
+                        raise ValueError("epsilon must be between 0 and 1")
+
+    @staticmethod
+    def fit_single_instance(params):
+        """
+        Fit a single instance of the DRFL algorithm with a given set of parameters.
+
+        Parameters:
+            params (dict): A dictionary containing the parameters for a single DRFL instance.
+
+        Returns:
+            A dictionary containing the parameters used and the results of the DRFL fitting process.
+        """
+        m, R, C, G, epsilon, alpha, sigma, time_series, target_centroids = params
+        drfl = DRFL(m=m, R=R, C=C, G=G, epsilon=epsilon)
+        drfl.fit(time_series)
+        estimated_distance = drfl.estimate_distance(target_centroids, alpha=alpha, sigma=sigma)
+        return {"m": m, "R": R, "C": C, "G": G, "epsilon": epsilon, "estimated_distance": estimated_distance}
+
+    def fit(self, time_series: pd.Series, target_centroids: list[list]):
+        """
+        Fit the DRFL algorithm to the time series data using multiple sets of parameters in parallel.
+
+        Parameters:
+            time_series (pd.Series): The time series data to analyze.
+            target_centroids (list[list]): List of target centroids to compare with the discovered routines.
+        """
+
+        # set the fitted parameter to true
+        self.__fitted = True
+
+        # Prepare the list with all combinations of parameters to fit the DRFL instances
+        all_params = list(product(
+            [self.__param_grid.get('m', [3])],
+            self.__param_grid.get('R', [2]),
+            self.__param_grid.get('C', [3]),
+            self.__param_grid.get('G', [4]),
+            self.__param_grid.get('epsilon', [1]),
+            [self.__alpha],
+            [self.__sigma],
+            [time_series],
+            [target_centroids]
+        ))
+
+        # Use ProcessPoolExecutor to fit DRFL instances in parallel
+        with ProcessPoolExecutor(max_workers=self.__n_jobs) as executor:
+            results = list(executor.map(self.fit_single_instance, all_params))
+
+        self.__results = results
+
+    def cv_results(self) -> pd.DataFrame:
+        """
+        Return the cross-validation results after fitting the DRFL instances.
+
+        Returns:
+            A pandas DataFrame containing the results of the parallel search sorted by distance.
+
+        Raises:
+            RuntimeError: If the model has not been fitted yet.
+
+        Examples:
+            >>> from DRFL import ParallelSearchDRFL
+            >>> import pandas as pd
+
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> param_grid = {
+            ...     "m": [3],
+            ...     "R": [1, 2, 3, 4, 5, 6],
+            ...     "C": [1, 2, 3, 4, 5, 6],
+            ...     "G": [1, 2, 3, 4, 5, 6],
+            ...     "epsilon": [0.5, 1],
+            ... }
+            >>> search = ParallelSearchDRFL(n_jobs=2, alpha=0.5, sigma=3, param_grid=param_grid)
+            >>> search.fit(time_series)
+            >>> print(search.cv_results())
+            ... m R  C  G  epsilon  estimated_distance
+            ... 3 1  3  4   1.0     0.0
+            ... 3 1  2  5   1.0     0.0
+            ... 3 2  1  5   1.0     0.0
+            ... 3 2  2  5   1.0     0.0
+            ...
+        """
+
+        # Check if the model has been fitted
+        if not self.__fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
+        # Sort the results by estimated distance
+        results = pd.DataFrame(self.__results).sort_values(by="estimated_distance")
+        return pd.DataFrame(results)
+
+    def best_params(self) -> dict:
+        """
+        Return the best parameters found during the search.
+
+        Returns:
+            `dict`. A dictionary containing the best parameters found during the search.
+
+        Raises:
+            RuntimeError: If the model has not been fitted yet.
+
+        Examples:
+            >>> from DRFL import ParallelSearchDRFL
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> param_grid = {
+            ...     "m": [3],
+            ...     "R": [1, 2, 3, 4, 5, 6],
+            ...     "C": [1, 2, 3, 4, 5, 6],
+            ...     "G": [1, 2, 3, 4, 5, 6],
+            ...     "epsilon": [0.5, 1],
+            ... }
+            >>> search = ParallelSearchDRFL(n_jobs=2, alpha=0.5, sigma=3, param_grid=param_grid)
+            >>> search.fit(time_series)
+            >>> print(search.best_params())
+            >>> {'m': 3, 'R': 1, 'C': 3, 'G': 4, 'epsilon': 1}
+        """
+
+        if not self.__fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
+        results = self.cv_results()
+        return results.iloc[0].to_dict()
