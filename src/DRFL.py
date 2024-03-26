@@ -37,8 +37,7 @@ Public methods:
 """
 import sys
 import datetime
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from multiprocessing import Pool
+from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -286,7 +285,7 @@ class DRFL:
         1 - exp(-((N_target - N_estimated) ** 2) / sigma)
 
         This distance is ranged from 0 to 1, where 0 means that the target and estimated number of instances are equal and 1 means that they are different.
-        Its purpose is to penalize the difference between the target and estimated number of instances in a smooth way.
+        Its purpose is to penalize the difference between the target and estimated number of routines in a smooth way.
 
         Parameters:
             * N_target: `int`. Target number of centroids.
@@ -663,14 +662,14 @@ class DRFL:
             >>> cluster1 = Cluster(centroid=S1, instances=Sequence(subsequence=S1))
             >>> cluster2 = Cluster(centroid=S2, instances=Sequence(subsequence=S2))
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
-            >>> drfl.__obtain_keep_indices(0.5)
+            >>> drfl.__obtain_keep_indices(1)
             [0, 1]
 
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
             >>> cluster1 = Cluster(centroid=S1, instances=Sequence(subsequence=S1))
             >>> cluster2 = Cluster(centroid=S2, instances=Sequence(subsequence=S2))
-            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.__obtain_keep_indices(0.5)
             [1]
         """
@@ -764,12 +763,31 @@ class DRFL:
         Returns:
             `float`. The distance between the target and estimated centroids ranged from 0 to 1.
 
+        Raises:
+            RuntimeError: If the model has not been fitted yet.
+            TypeError: If target_centroids is not a list of lists.
+            ValueError: If alpha is not between 0 and 1 or sigma is not greater than 1.
 
-
+        Examples:
+            >>> from DRFL import DRFL
+            >>> import numpy as np
+            >>> target_centroids = [[4 / 3, 3, 6], [3, 6, 4], [6, 4, 4 / 3]]
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drfl = DRFL(m=3, R=1, C=3, G=4, epsilon=1)
+            >>> drfl.fit(time_series)
+            >>> dist = drfl.estimate_distance(target_centroids, alpha=0.5, sigma=3)
+            >>> print(dist)
+            0.0
         """
 
+        # Check if the model has been fitted
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
+        # Check if there are routines to compare
         if self.__routines.is_empty():
-            # warnings.warn("No routines have been discovered", UserWarning)
+            warnings.warn("No routines have been discovered", UserWarning)
             return np.nan
 
         # Estimate the penalization of detecting a distinct number of routines
