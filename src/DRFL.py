@@ -854,24 +854,26 @@ class DRFL:
 
         return self.__routines
 
-    def plot_results(self, title_fontsize: Optional[int] = None,
-                     xticks_fontsize: Optional[int] = None, yticks_fontsize: Optional[int] = None,
-                     labels_fontsize: Optional[int] = None, figsize: Optional[tuple[int, int]] = (30, 10),
-                     linewidth_bars: int = 1.5, xlim: Optional[tuple[int, int]] = None,
+    def plot_results(self, title_fontsize: int = 20,
+                     xticks_fontsize: int = 20, yticks_fontsize: int = 20,
+                     labels_fontsize: int = 20, figsize: tuple[int, int] = (30, 10),
+                     text_fontsize: int = 20, linewidth_bars: int = 1.5,
+                     xlim: Optional[tuple[int, int]] = None,
                      save_dir: Optional[str] = None) -> None:
 
         """
         This method uses matplotlib to plot the results of the algorithm. The plot shows the time series data with vertical dashed lines indicating the start of each discovered routine. The color of each routine is determined by the order in which they were discovered, and a legend is displayed to identify each routine.
 
         Parameters:
-            * title_fontsize: `Optional[int]`. Size of the title plot.
-            * xticks_fontsize: `Optional[int]`. Size of the xticks.
-            * yticks_fontsize: `Optional[int]`. Size of the yticks.
-            * labels_fontsize: `Optional[int]`. Size of the labels.
-            * figsize: `Optional[tuple[int, int]]`. Size of the figure.
-            * linewidth_bars: `Optional[int]`. Width of the bars in the plot.
-            * xlim: `Optional[tuple[int, int]]`. Limit of the x axis with starting points.
-            * save_dir: `Optional[str]`. Directory to save the plot.
+            * title_fontsize: `int` (default is 20). Size of the title plot.
+            * xticks_fontsize: `int` (default is 20). Size of the xticks.
+            * yticks_fontsize: `int (default is 20)`. Size of the yticks.
+            * labels_fontsize: `int` (default is 20). Size of the labels.
+            * figsize: `tuple[int, int]` (default is (30, 10)). Size of the figure.
+            * text_fontsize: `int` (default is 20). Size of the text.
+            * linewidth_bars: `int` (default is 1.5). Width of the bars in the plot.
+            * xlim: `tuple[int, int]` (default is None). Limit of the x axis with starting points.
+            * save_dir: `str` (default is None). Directory to save the plot.
 
         Notes:
            This method has to be executed after the fit method to ensure that routines have been discovered and are ready to be displayed.
@@ -908,8 +910,8 @@ class DRFL:
             colors = ["gray"] * len(ts)
 
             # Set the title and x-label of the subplot
-            plt.title(f'Routine {row + 1}', fontsize=title_fontsize or 20)
-            plt.xlabel("Starting Points", fontsize=labels_fontsize or 20)
+            plt.title(f'Routine {row + 1}', fontsize=title_fontsize)
+            plt.xlabel("Starting Points", fontsize=labels_fontsize)
 
             # For each starting point in the routine, plot a vertical line and change the color of the data points in the routine
             for sp in routine:
@@ -917,17 +919,19 @@ class DRFL:
                     plt.axvline(x=sp, color=base_colors[row], linestyle="--")
                     for j in range(self.m):
                         if sp + j <= xlim[1]:
-                            plt.text(sp + j - 0.05, self.time_series[sp + j] - 0.8, f"{ts[sp + j]}", fontsize=20,
-                                     backgroundcolor="white", color=base_colors[row])
+                            plt.text(sp + j - 0.05, self.time_series[sp + j] - 0.8, f"{ts[sp + j]}",
+                                     fontsize=text_fontsize, backgroundcolor="white", color=base_colors[row])
                             colors[sp + j] = base_colors[row]
 
             # Plot the time series data as a bar plot
             plt.bar(x=np.arange(0, len(ts)), height=ts, color=colors, edgecolor="black", linewidth=linewidth_bars)
 
             # Set the ticks on the x-axis
-            plt.xticks(ticks=np.arange(xlim[0], xlim[1] + 1), labels=np.arange(xlim[0], xlim[1] + 1),
-                       fontsize=xticks_fontsize or 20)
-            plt.yticks(fontsize=yticks_fontsize or 20)
+            plt.xticks(ticks=np.arange(xlim[0], xlim[1] + 1),
+                       labels=np.arange(xlim[0], xlim[1] + 1),
+                       fontsize=xticks_fontsize)
+
+            plt.yticks(fontsize=yticks_fontsize)
 
             # Plot a horizontal line at the magnitude threshold
             plt.axhline(y=self.G, color="red", linestyle="--")
@@ -1020,7 +1024,94 @@ class ParallelSearchDRFL:
         self.__fitted: bool = False
 
     @staticmethod
-    def __check_validity_params(alpha: Union[int, float], sigma: Union[int, float], param_grid: dict):
+    def __check_m_param(m: int):
+        """
+        Check the validity of the m parameter.
+
+        Parameters:
+            * m: `int`. The m parameter to check.
+
+        Raises:
+            TypeError: If m is not an integer.
+            ValueError: If m is not greater than 1.
+        """
+
+        if not isinstance(m, int):
+            raise TypeError("m must be an integer")
+
+        if m < 2:
+            raise ValueError("m must be greater or equal than 2")
+
+    @staticmethod
+    def __check_R_or_G_param(param: list[Union[int, float]]):
+        """
+        Check the validity of the R parameter.
+
+        Parameters:
+            * R: `list[int | float]`. The R parameter to check.
+
+        Raises:
+            TypeError: If R is not a list.
+            ValueError: If R is empty or if some value in R is not greater than one.
+        """
+
+        if not isinstance(param, list):
+            raise TypeError("R must be a list")
+
+        if len(param) == 0:
+            raise ValueError("R cannot be empty")
+
+        for value in param:
+            if value < 1:
+                raise ValueError("R must be greater or equal than 1")
+
+    @staticmethod
+    def __check_C_param(C: list[int]):
+        """
+        Check the validity of the C parameter.
+
+        Parameters:
+            * C: `list[int]`. The C parameter to check.
+
+        Raises:
+            TypeError: If C is not a list.
+            ValueError: If C is empty or if some value in C is not greater than one.
+        """
+
+        if not isinstance(C, list):
+            raise TypeError("C must be a list")
+
+        if len(C) == 0:
+            raise ValueError("C cannot be empty")
+
+        for value in C:
+            if value < 1 or not isinstance(value, int):
+                raise ValueError("C must be an integer greater or equal than 1")
+
+    @staticmethod
+    def __check_epsilon_param(epsilon: list[float | int]):
+        """
+        Check the validity of the epsilon parameter.
+
+        Parameters:
+            * epsilon: `list[float | int]`. The epsilon parameter to check.
+
+        Raises:
+            TypeError: If epsilon is not a list.
+            ValueError: If epsilon is empty or if some value in epsilon is not between 0 and 1.
+        """
+
+        if not isinstance(epsilon, list):
+            raise TypeError("epsilon must be a list")
+
+        if len(epsilon) == 0:
+            raise ValueError("epsilon cannot be empty")
+
+        for value in epsilon:
+            if value < 0 or value > 1:
+                raise ValueError("epsilon must be between 0 and 1")
+
+    def __check_validity_params(self, alpha: Union[int, float], sigma: Union[int, float], param_grid: dict):
         """
         Check the validity of the parameter grid.
 
@@ -1032,35 +1123,37 @@ class ParallelSearchDRFL:
             ValueError: If some parameter is not valid or has an invalid value.
         """
 
+        # Check if alpha and sigma are valid
         if alpha < 0 or alpha > 1:
             raise ValueError("alpha must be between 0 and 1")
 
         if sigma < 1:
             raise ValueError("sigma must be greater or equal than 1")
 
+        # Check if the parameter grid is a dictionary or if it is empty
         if not isinstance(param_grid, dict):
             raise TypeError("param_grid must be a dictionary")
 
         if not param_grid:
             raise ValueError("param_grid cannot be empty")
 
+        # Check if the parameters are valid
         valid_params = ['m', 'R', 'C', 'G', 'epsilon']
         for key in param_grid.keys():
             if key not in valid_params:
                 raise ValueError(f"Invalid parameter: {key}. Valid parameters are: {valid_params}")
 
-            if key == "m" and (param_grid[key] < 2 or not isinstance(param_grid[key], int)):
-                raise ValueError("m must be an integer greater or equal than 2")
+            if key == "m":
+                self.__check_m_param(param_grid[key])
+
+            if key == "R" or key == "G":
+                self.__check_R_or_G_param(param_grid[key])
 
             if key == "C":
-                for value in param_grid[key]:
-                    if value < 1 or not isinstance(value, int):
-                        raise ValueError("C must be greater or equal than 1")
+                self.__check_C_param(param_grid[key])
 
             if key == "epsilon":
-                for value in param_grid[key]:
-                    if value < 0 or value > 1:
-                        raise ValueError("epsilon must be between 0 and 1")
+                self.__check_epsilon_param(param_grid[key])
 
     @staticmethod
     def fit_single_instance(params):
@@ -1073,6 +1166,7 @@ class ParallelSearchDRFL:
         Returns:
             A dictionary containing the parameters used and the results of the DRFL fitting process.
         """
+
         m, R, C, G, epsilon, alpha, sigma, time_series, target_centroids = params
         drfl = DRFL(m=m, R=R, C=C, G=G, epsilon=epsilon)
         drfl.fit(time_series)
