@@ -106,8 +106,8 @@ if __name__ == "__main__":
 
     print(ts)
 
-    # time_series = pd.Series(np.array(ts))
-    time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+    time_series = pd.Series(np.array(ts))
+    # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
     time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
     target_centroids = [[4 / 3, 3, 6], [3, 6, 4], [6, 4, 4 / 3]]
 
@@ -115,11 +115,10 @@ if __name__ == "__main__":
     C = [x for x in range(1, 10, 1)]
     G = [x for x in range(1, 6, 1)]
     epsilon = [0.5, 1]
-    alpha = 0.6
+    alpha = 0.5
     sigma = 3
 
-    parallel_search = ParallelSearchDRFL(n_jobs=10, alpha=0.6, sigma=3,
-                                         param_grid={'m': 3, 'R': R, 'C': C, 'G': G, 'epsilon': epsilon})
+    parallel_search = ParallelSearchDRFL(n_jobs=10, alpha=alpha, sigma=sigma, param_grid={'m': 3, 'R': R, 'C': C, 'G': G, 'epsilon': epsilon})
     parallel_search.fit(time_series, target_centroids=target_centroids)
     results = parallel_search.cv_results()
     best_params = parallel_search.best_params()
@@ -130,7 +129,7 @@ if __name__ == "__main__":
     best_drfl.show_results()
     best_drfl.plot_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
                            yticks_fontsize=20, figsize=(45, 25),
-                           linewidth_bars=2)
+                           linewidth_bars=2, xlim=(0,50))
 
     # drfl = DRFL(3, 2, 3, 4, 0.5)
     # drfl.fit(time_series)

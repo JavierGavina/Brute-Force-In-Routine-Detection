@@ -689,7 +689,6 @@ class Sequence:
         # Check if the subsequences are equal
         return np.array_equal(self.get_subsequences(), other.get_subsequences())
 
-
     def _alreadyExists(self, subsequence: 'Subsequence') -> bool:
         """
         Check if the subsequence already exists in the sequence
